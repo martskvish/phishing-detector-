@@ -1,1 +1,478 @@
-hi
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Phishing Detector</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --card: #131a2f;
+      --text: #e9eefb;
+      --muted: #9fb0dd;
+      --primary: #5aa2ff;
+      --danger: #ff6b7a;
+      --warn: #ffd166;
+      --safe: #62d2a2;
+      --border: #23315a;
+    }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: linear-gradient(135deg, #090d1a 0%, #121a33 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    h1, h2, h3 { margin: 0 0 10px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .card {
+      background: rgba(19, 26, 47, 0.95);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+    }
+    label { display: block; margin: 10px 0 6px; color: var(--muted); font-size: 14px; }
+    input, button {
+      width: 100%; box-sizing: border-box; border-radius: 10px; border: 1px solid var(--border);
+      background: #0e1530; color: var(--text); padding: 10px 12px; font-size: 14px;
+    }
+    button { cursor: pointer; background: linear-gradient(90deg, #3d87ff 0%, #5aa2ff 100%); border: none; font-weight: 700; margin-top: 10px; }
+    button.secondary { background: #1c2a52; }
+    .row { display: flex; gap: 10px; }
+    .row > * { flex: 1; }
+    .pill { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+    .safe { background: rgba(98,210,162,.18); color: var(--safe); }
+    .suspicious { background: rgba(255,209,102,.18); color: var(--warn); }
+    .phishing { background: rgba(255,107,122,.18); color: var(--danger); }
+    .error { color: var(--danger); margin-top: 8px; min-height: 18px; }
+    .muted { color: var(--muted); }
+    ul { margin: 8px 0 0 18px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+    th, td { text-align: left; border-bottom: 1px solid var(--border); padding: 8px 6px; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .hidden { display: none; }
+    pre {
+      white-space: pre-wrap;
+      background: #0d1430;
+      border: 1px solid var(--border);
+      padding: 10px;
+      border-radius: 10px;
+      font-size: 12px;
+      color: #bed0ff;
+      max-height: 220px;
+      overflow: auto;
+    }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="topbar">
+      <h1>Phishing Detector</h1>
+      <div id="sessionInfo" class="muted">Not logged in</div>
+    </div>
+
+    <div id="authCard" class="card">
+      <h2>Login</h2>
+      <p class="muted">Use default account <code>admin / admin123</code> (created automatically).</p>
+      <label for="username">Username</label>
+      <input id="username" type="text" placeholder="username" />
+      <label for="password">Password</label>
+      <input id="password" type="password" placeholder="password" />
+      <div class="row">
+        <button id="loginBtn">Login</button>
+      </div>
+      <div id="authError" class="error"></div>
+    </div>
+
+    <div id="app" class="hidden">
+      <div class="grid">
+        <div class="card">
+          <h2>URL Analysis</h2>
+          <label for="urlInput">Enter URL</label>
+          <input id="urlInput" type="text" placeholder="https://example.com/login" />
+          <button id="analyzeBtn">Start Analysis</button>
+          <button id="logoutBtn" class="secondary">Logout</button>
+          <div id="urlError" class="error"></div>
+
+          <h3 style="margin-top:16px">Result</h3>
+          <div id="classificationPill" class="pill safe">No scan yet</div>
+          <p><strong>Risk score:</strong> <span id="riskScore">0</span></p>
+          <p><strong>Triggered indicators:</strong></p>
+          <ul id="indicatorsList"></ul>
+        </div>
+
+        <div class="card">
+          <h2>Technical Breakdown</h2>
+          <p class="muted">URL components and fetched page analysis details.</p>
+          <pre id="details">No data</pre>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <h2>Scan History</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Scan ID</th>
+              <th>URL</th>
+              <th>Risk</th>
+              <th>Classification</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody id="historyBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const WEIGHTS = {
+      longUrl: 15,
+      suspiciousChars: 10,
+      hyphenDomain: 10,
+      multipleDots: 8,
+      tooManySubdomains: 12,
+      ipAddress: 35,
+      lookalikeDomain: 30,
+      loginForm: 18,
+      suspiciousScript: 20,
+      suspiciousKeywords: 15,
+      htmlFetchError: 5
+    };
+
+    const THRESHOLDS = {
+      safeMax: 24,
+      suspiciousMax: 54
+    };
+
+    const TARGETED_DOMAINS = [
+      'google.com', 'microsoft.com', 'apple.com', 'amazon.com',
+      'paypal.com', 'facebook.com', 'instagram.com', 'linkedin.com', 'github.com', 'bankofamerica.com'
+    ];
+
+    const SUSPICIOUS_PHRASES = [
+      'verify your account', 'urgent action required', 'confirm password',
+      'your account will be suspended', 'login immediately', 'security alert',
+      'update billing information', 'unusual sign-in activity'
+    ];
+
+    const state = { currentUser: null };
+
+    function seedDefaultData() {
+      const users = JSON.parse(localStorage.getItem('users') || '[]');
+      if (!users.find(u => u.username === 'admin')) {
+        users.push({ user_id: 1, username: 'admin', password: 'admin123' });
+        localStorage.setItem('users', JSON.stringify(users));
+      }
+      if (!localStorage.getItem('scans')) {
+        localStorage.setItem('scans', JSON.stringify([]));
+      }
+    }
+
+    function isValidUrl(url) {
+      const regex = /^(https?:\/\/)([\w-]+\.)+[\w-]{2,}(\/[^\s]*)?$/i;
+      return regex.test(url);
+    }
+
+    function parseUrl(url) {
+      const parsed = new URL(url);
+      const hostParts = parsed.hostname.split('.');
+      const domain = hostParts.slice(-2).join('.');
+      const subdomain = hostParts.length > 2 ? hostParts.slice(0, -2).join('.') : '';
+      return {
+        protocol: parsed.protocol.replace(':', ''),
+        domain,
+        subdomain,
+        path: parsed.pathname || '/'
+      };
+    }
+
+    function levenshtein(a, b) {
+      const dp = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
+      for (let i = 0; i <= a.length; i++) dp[i][0] = i;
+      for (let j = 0; j <= b.length; j++) dp[0][j] = j;
+      for (let i = 1; i <= a.length; i++) {
+        for (let j = 1; j <= b.length; j++) {
+          const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+          dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
+        }
+      }
+      return dp[a.length][b.length];
+    }
+
+    function similarity(a, b) {
+      const dist = levenshtein(a, b);
+      return 1 - dist / Math.max(a.length, b.length);
+    }
+
+    function isIPv4(hostname) {
+      return /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/.test(hostname);
+    }
+
+    async function fetchHtml(url) {
+      const result = { html: '', error: null, status: null };
+      try {
+        const response = await fetch(url, { method: 'GET' });
+        result.status = response.status;
+        if (!response.ok) {
+          result.error = `HTTP status ${response.status}`;
+          return result;
+        }
+        result.html = await response.text();
+      } catch (err) {
+        result.error = `Connection error: ${err.message}`;
+      }
+      return result;
+    }
+
+    function analyzeHtml(html, baseDomain) {
+      const findings = [];
+      let score = 0;
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+
+      const forms = [...doc.querySelectorAll('form')];
+      const hasPasswordField = forms.some(f => f.querySelector('input[type="password"]'));
+      if (forms.length && hasPasswordField) {
+        findings.push('Login form with password field detected');
+        score += WEIGHTS.loginForm;
+      }
+
+      const scripts = [...doc.querySelectorAll('script')];
+      const externalScripts = scripts.filter(s => s.src);
+      let suspiciousScriptCount = 0;
+
+      externalScripts.forEach(s => {
+        try {
+          const srcHost = new URL(s.src, `https://${baseDomain}`).hostname;
+          if (!srcHost.endsWith(baseDomain)) suspiciousScriptCount++;
+        } catch (_) { suspiciousScriptCount++; }
+      });
+
+      const inlineText = scripts.map(s => s.textContent || '').join(' ').toLowerCase();
+      if (/location\s*=|window\.open\(|document\.location/.test(inlineText)) suspiciousScriptCount++;
+      if (/addEventListener\(['"]input['"]|keylogger|onkeypress|onkeydown/.test(inlineText)) suspiciousScriptCount++;
+
+      if (suspiciousScriptCount > 0) {
+        findings.push(`Suspicious script behavior detected (${suspiciousScriptCount} signal(s))`);
+        score += WEIGHTS.suspiciousScript;
+      }
+
+      const cloned = doc.cloneNode(true);
+      cloned.querySelectorAll('script,style,noscript').forEach(el => el.remove());
+      const visibleText = (cloned.body?.textContent || '').replace(/\s+/g, ' ').toLowerCase();
+      let keywordHits = 0;
+      for (const phrase of SUSPICIOUS_PHRASES) {
+        if (visibleText.includes(phrase)) keywordHits++;
+      }
+      if (keywordHits > 0) {
+        findings.push(`Suspicious keyword hits: ${keywordHits}`);
+        score += WEIGHTS.suspiciousKeywords;
+      }
+
+      return { score, findings, meta: { formCount: forms.length, scriptCount: scripts.length, externalScriptCount: externalScripts.length, keywordHits } };
+    }
+
+    async function analyzeUrl(url) {
+      const indicators = [];
+      let risk = 0;
+
+      const parsed = new URL(url);
+      const components = parseUrl(url);
+      const host = parsed.hostname;
+      const hostParts = host.split('.');
+
+      if (url.length > 75) {
+        risk += WEIGHTS.longUrl;
+        indicators.push(`URL length (${url.length}) exceeds threshold`);
+      }
+
+      if (/[@$#%]/.test(url)) {
+        risk += WEIGHTS.suspiciousChars;
+        indicators.push('Special character in URL (@, $, #, %)');
+      }
+
+      const hyphenCount = (components.domain.match(/-/g) || []).length;
+      if (hyphenCount >= 2) {
+        risk += WEIGHTS.hyphenDomain;
+        indicators.push(`Domain has ${hyphenCount} hyphen(s)`);
+      }
+
+      const dotCount = (host.match(/\./g) || []).length;
+      if (dotCount >= 3) {
+        risk += WEIGHTS.multipleDots;
+        indicators.push(`Hostname has many dots (${dotCount})`);
+      }
+
+      const subdomainCount = Math.max(0, hostParts.length - 2);
+      if (subdomainCount >= 3) {
+        risk += WEIGHTS.tooManySubdomains;
+        indicators.push(`Too many subdomains (${subdomainCount})`);
+      }
+
+      if (isIPv4(host)) {
+        risk += WEIGHTS.ipAddress;
+        indicators.push('URL uses an IP address');
+      }
+
+      const matched = TARGETED_DOMAINS.map(d => ({ domain: d, sim: similarity(components.domain, d) }))
+        .sort((a, b) => b.sim - a.sim)[0];
+      if (matched && matched.domain !== components.domain && matched.sim >= 0.74) {
+        risk += WEIGHTS.lookalikeDomain;
+        indicators.push(`Domain looks similar to ${matched.domain} (${Math.round(matched.sim * 100)}%)`);
+      }
+
+      const htmlResult = await fetchHtml(url);
+      let htmlAnalysis = { score: 0, findings: [], meta: {}, fetch: htmlResult };
+      if (htmlResult.html) {
+        htmlAnalysis = { ...analyzeHtml(htmlResult.html, components.domain), fetch: htmlResult };
+        risk += htmlAnalysis.score;
+        indicators.push(...htmlAnalysis.findings);
+      } else {
+        risk += WEIGHTS.htmlFetchError;
+        indicators.push(`HTML retrieval issue: ${htmlResult.error || 'Unknown error'}`);
+      }
+
+      const classification = risk <= THRESHOLDS.safeMax
+        ? 'Safe'
+        : risk <= THRESHOLDS.suspiciousMax
+          ? 'Suspicious'
+          : 'Phishing';
+
+      return {
+        url,
+        risk,
+        classification,
+        indicators,
+        components,
+        breakdown: {
+          urlLength: url.length,
+          subdomainCount,
+          dotCount,
+          hyphenCount,
+          lookalikeBestMatch: matched,
+          html: htmlAnalysis
+        }
+      };
+    }
+
+    function saveScan(result) {
+      const scans = JSON.parse(localStorage.getItem('scans') || '[]');
+      const scan = {
+        scan_id: scans.length ? scans[scans.length - 1].scan_id + 1 : 1,
+        user_id: state.currentUser.user_id,
+        url: result.url,
+        risk_score: result.risk,
+        classification: result.classification,
+        scan_date: new Date().toISOString(),
+        indicators: result.indicators
+      };
+      scans.push(scan);
+      localStorage.setItem('scans', JSON.stringify(scans));
+    }
+
+    function renderHistory() {
+      const scans = JSON.parse(localStorage.getItem('scans') || '[]')
+        .filter(s => s.user_id === state.currentUser.user_id)
+        .sort((a, b) => new Date(b.scan_date) - new Date(a.scan_date));
+
+      const tbody = document.getElementById('historyBody');
+      tbody.innerHTML = '';
+      if (!scans.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="muted">No scans yet</td></tr>';
+        return;
+      }
+
+      scans.forEach(s => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${s.scan_id}</td>
+          <td>${s.url}</td>
+          <td>${s.risk_score}</td>
+          <td>${s.classification}</td>
+          <td>${new Date(s.scan_date).toLocaleString()}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderResult(result) {
+      const scoreEl = document.getElementById('riskScore');
+      const listEl = document.getElementById('indicatorsList');
+      const pill = document.getElementById('classificationPill');
+      const details = document.getElementById('details');
+
+      scoreEl.textContent = String(result.risk);
+      listEl.innerHTML = '';
+      result.indicators.forEach(i => {
+        const li = document.createElement('li');
+        li.textContent = i;
+        listEl.appendChild(li);
+      });
+      if (!result.indicators.length) {
+        listEl.innerHTML = '<li>No indicators triggered</li>';
+      }
+
+      pill.textContent = result.classification;
+      pill.className = 'pill ' + (result.classification === 'Safe' ? 'safe' : result.classification === 'Suspicious' ? 'suspicious' : 'phishing');
+
+      details.textContent = JSON.stringify({
+        components: result.components,
+        breakdown: result.breakdown
+      }, null, 2);
+    }
+
+    function setLoggedIn(user) {
+      state.currentUser = user;
+      document.getElementById('authCard').classList.add('hidden');
+      document.getElementById('app').classList.remove('hidden');
+      document.getElementById('sessionInfo').textContent = `Logged in as ${user.username}`;
+      renderHistory();
+    }
+
+    function logout() {
+      state.currentUser = null;
+      document.getElementById('app').classList.add('hidden');
+      document.getElementById('authCard').classList.remove('hidden');
+      document.getElementById('sessionInfo').textContent = 'Not logged in';
+    }
+
+    document.getElementById('loginBtn').addEventListener('click', () => {
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      const users = JSON.parse(localStorage.getItem('users') || '[]');
+      const user = users.find(u => u.username === username && u.password === password);
+      if (!user) {
+        document.getElementById('authError').textContent = 'Invalid username or password';
+        return;
+      }
+      document.getElementById('authError').textContent = '';
+      setLoggedIn(user);
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+
+    document.getElementById('analyzeBtn').addEventListener('click', async () => {
+      const url = document.getElementById('urlInput').value.trim();
+      const errEl = document.getElementById('urlError');
+      errEl.textContent = '';
+
+      if (!isValidUrl(url)) {
+        errEl.textContent = 'Invalid URL format. Please include http:// or https:// and a valid domain.';
+        return;
+      }
+
+      const result = await analyzeUrl(url);
+      renderResult(result);
+      saveScan(result);
+      renderHistory();
+    });
+
+    seedDefaultData();
+  </script>
+</body>
+</html>
