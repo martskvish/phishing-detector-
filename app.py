@@ -1,61 +1,65 @@
-from flask import Flask, render_template, request, redirect, session
-from database import create_users_table
-from auth import register_user, login_user
+from flask import Flask, render_template, request, redirect
+import sqlite3
+import random
 
 app = Flask(__name__)
-app.secret_key = "your_secret_key"
-
-create_users_table()
+app.secret_key = str(random.randint(1, 40))
 
 @app.route("/")
-def home():
-    if "user" in session:
-        return redirect("/dashboard")
-    return redirect("/login")
-
-@app.route("/register", methods=["GET", "POST"])
-def register():
-    if request.method == "POST":
-        username = request.form["username"]
-        email = request.form["email"]
-        password = request.form["password"]
-
-        success, message = register_user(username, email, password)
-
-        if success:
-            return redirect("/login")
-        else:
-            return message
-
-    return render_template("register.html")
-
-@app.route("/login", methods=["GET", "POST"])
 def login():
-    if request.method == "POST":
-        username = request.form["username"]
-        password = request.form["password"]
-
-        success, result = login_user(username, password)
-
-        if success:
-            session["user"] = result["username"]
-            return redirect("/dashboard")
-        else:
-            return result
-
     return render_template("login.html")
 
-@app.route("/dashboard")
-def dashboard():
-    if "user" not in session:
-        return redirect("/login")
+@app.route("/login_verify", methods=["POST"])
+def login_verify():
+    email = request.form.get('email')
+    password = request.form.get('password')
 
-    return render_template("dashboard.html", user=session["user"])
+    Connection = sqlite3.connect("users.db")
+    cursor = Connection.cursor()
+    
+    user = cursor.execute("SELECT * FROM USERS WHERE email = ? AND password = ?", (email, password)).fetchall()
+    Connection.close()
+    if len(user) == 0:
+        return redirect("/")
+    else:
+        username = user[0][0]
+        return redirect(f"/home?username={username}&email={email}")
+    
+@app.route("/home")
+def home():
+    username = request.args.get('username')
+    email = request.args.get('email')
 
-@app.route("/logout")
-def logout():
-    session.pop("user", None)
-    return redirect("/login")
+    return render_template("home.html", username=username, email=email)
+
+
+@app.route("/register")
+def register():
+    return render_template("signup.html")
+
+
+@app.route("/add_user", methods=["POST"])
+def add_user():
+    username = request.form.get('username')
+    email = request.form.get('email')
+    password = request.form.get('password')
+
+    Connection = sqlite3.connect("users.db")
+    cursor = Connection.cursor()
+
+    ans = cursor.execute("SELECT * FROM USERS WHERE email = ? AND password = ?", (email, password)).fetchall()
+    
+    if len(ans) > 0:
+        Connection.close()
+        return render_template("login.html")
+    else:
+        cursor.execute("INSERT INTO USERS (username, email, password) VALUES (?, ?, ?)", (username, email, password))
+    
+    
+    Connection.commit()
+    Connection.close()
+
+    return redirect("/")
 
 if __name__ == "__main__":
     app.run(debug=True)
