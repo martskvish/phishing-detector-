@@ -12,8 +12,9 @@ cursor = connection.cursor()
 #email column is set as the primary key, which means it must be unique for each user and cannot be null. 
 #password column is also set to not allow null values.
 cmd1 = """CREATE TABLE IF NOT EXISTS USERS 
-    (username varchar(50),
-    email varchar(50) PRIMARY KEY,
+    (id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username varchar(50),
+    email varchar(50),
     password varchar(50) NOT NULL)"""
 
 #sends the SQL command to SQLite.
