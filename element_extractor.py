@@ -38,7 +38,7 @@ def decompose_url(url):
     #split domain into its components.
     domain_parts = domain.split(".")
 
-    #The top-level domain (TLD) is typically the last part of the domain (e.g., "com", "org", "net").
+    #The top-level domain (TLD) is typically the last part of the domain ("com", "org", "net").
     tld = domain_parts[-1]
 
     #if domain_parts conatisn 2 or more parts, the main domain is the second to last part ("example" in "www.example.com").
