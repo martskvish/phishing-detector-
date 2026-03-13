@@ -4,13 +4,16 @@
 
 from flask import Flask, render_template, request, redirect
 import sqlite3
-# import random
 
+'''
+import random
+'''
 #initalizes a flask applicatio and assigns it to the variable app. 
 app = Flask(__name__)
 
-# app.secret_key = str(random.randint(1, 40))
-
+'''
+app.secret_key = str(random.randint(1, 40))
+'''
 
 #define route for the root URL ("/") and associates it with the login function.
 #When a user visits the root URL, login function is called and  "login.html" template is rendered whcih is sent back to the user's browser.
@@ -65,19 +68,19 @@ def register():
 @app.route("/add_user", methods=["POST"])
 def add_user():
 
-    #Retrieves the username, email, and password from the form data submitted
+    #Retrieves the username, email, and password from the form data submitted.
     username = request.form.get('username')
     email = request.form.get('email')
     password = request.form.get('password')
 
-    #initializes connection to the SQLite database
+    #initializes connection to the SQLite database.
     Connection = sqlite3.connect("users.db")
     cursor = Connection.cursor()
 
-    #Checks if user with provided email and password already exists
+    #Checks if user with provided email and password already exists.
     ans = cursor.execute("SELECT * FROM USERS WHERE email = ? AND password = ?", (email, password)).fetchall()
     
-    #If user with provided email and password already exists, redirect to the login page
+    #If user with provided email and password already exists, redirect to the login page.
     if len(ans) > 0:
         Connection.close()
         return render_template("login.html")
@@ -90,8 +93,9 @@ def add_user():
     Connection.commit()
     Connection.close()
 
+    #Redirect to the login page after successful registration.
     return redirect("/")
 
-
+#run the Flask application in debug mode.
 if __name__ == "__main__":
     app.run(debug=True)
