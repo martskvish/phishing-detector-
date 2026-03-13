@@ -9,7 +9,7 @@ def decompose_url(url):
     query = ""
 
     #check if the URL contains "://"
-    #If it does, it splits the URL into two parts: the protocol (e.g., "https") and the remainder of the URL.
+    #If it does, it splits the URL into two parts: the protocol ("https") and the remainder of the URL.
     if "://" in url:
         parts = url.split("://")
         protocol = parts[0]
