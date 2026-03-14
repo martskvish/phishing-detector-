@@ -15,10 +15,10 @@ def decompose_url(url):
         protocol = parts[0]
         remainder = parts[1]
     else:
-        #If the URL does not contain "://", it assumes there is no protocol specified and treats the entire URL as the remainder.
+        #If the URL does not contain "://", it assumes there is no protocol and entire URL is made as remainder.
         remainder = url
 
-    #This checks if the remainder of the URL contains a "/". 
+    #Check if the remainder of the URL contains a "/". 
     #If it does, it splits the remainder into the domain(0) and path(1) components.
     if "/" in remainder:
         domain = remainder.split("/")[0]
@@ -45,7 +45,7 @@ def decompose_url(url):
     if len(domain_parts) >= 2:
         main_domain = domain_parts[-2]
     else:
-        #If the domain does not have at least two parts, it means there is no main domain, and we can set it to an empty string or handle it as needed. 
+        #If the domain does not have at least two parts, meaning there is no main domain, it can be set to an empty string or handle it as needed. 
         #example: localhost or IP address.
         main_domain = ""
         tld = ""
