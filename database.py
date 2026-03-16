@@ -13,8 +13,8 @@ cursor = connection.cursor()
 #password column is also set to not allow null values.
 cmd1 = """CREATE TABLE IF NOT EXISTS USERS 
     (id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username varchar(50),
-    email varchar(50),
+    username,
+    email,
     password varchar(50) NOT NULL)"""
 
 #sends the SQL command to SQLite.
@@ -32,9 +32,9 @@ try:
 
     #This inserts data into the table.
     #permanently saves changes to the database.
-    cursor.execute(cmd2, ("admin", "admin@example.com", "admin123"))
+    # cursor.execute(cmd2, ("admin", "admin@example.com", "admin123"))
     connection.commit()
-    print("User inserted successfully")
+    # print("User inserted successfully")
 
 #If the email already exists in the database,
 #IntegrityError will be raised because email column is a primary key and must be unique.

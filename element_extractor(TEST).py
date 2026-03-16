@@ -71,12 +71,13 @@ def extraxt_html_content(url):
         #Get the HTML content as text
         html_content = response.text
 
-        #Print first 20000 characters
-        print(html_content[:20000])  
+        #Print first 400000 characters
+        print(html_content[:400000])  
     else:
         print(f"Failed to retrieve page. Status code: {response.status_code}")
     
     return response
+
 
 url = "https://advertools.readthedocs.io/en/master/advertools.urlytics.html#analyzing-a-large-number-of-urls"
 data = decompose_url(url)

@@ -1,9 +1,11 @@
 #import falasd and its functions for web development
 #sqlite3 for database interaction
-#random for generating a random secret key.
+#werkzeug.security for password hashing and verification
 
 from flask import Flask, render_template, request, redirect
 import sqlite3
+from werkzeug.security import generate_password_hash, check_password_hash
+
 
 '''
 import random
@@ -29,24 +31,26 @@ def login_verify():
     password = request.form.get('password')
 
     Connection = sqlite3.connect("users.db")
-    cursor = Connection.cursor()
+    cursor = Connection.cursor() 
 
     #This SQL command checks if there is a user in the USERS table with the provided email and password.
-    user = cursor.execute("SELECT * FROM USERS WHERE email = ? AND password = ?", (email, password)).fetchall()
+    user = cursor.execute("SELECT * FROM USERS WHERE email = ?", (email,)).fetchone()
     Connection.close()
 
     #If no user is found with the provided credentials, redirect to the login page.
     #If a user is found, redirect to the home page.
-    if len(user) == 0:
+    if user == None:
         return redirect("/")
     else:
-        username = user[0][1]
-        return redirect(f"/home?username={username}&email={email}")
-    
+        if check_password_hash(user[3], password):
+            username = user[1]
+            return redirect(f"/home?username={username}&email={email}")
+        else:
+            return redirect("/")
 
 #This defines a route for the /home URL. 
 #When user visits the /home URL, home function is called.
-#Retrieves username and email from the query parameters in the URL using request.args.get()
+#request.args.get() Retrieves username and email from the query parameters in the URL.
 @app.route("/home")
 def home():
     username = request.args.get('username')
@@ -78,16 +82,17 @@ def add_user():
     cursor = Connection.cursor()
 
     #Checks if user with provided email and password already exists.
-    ans = cursor.execute("SELECT * FROM USERS WHERE email = ? AND password = ?", (email, password)).fetchall()
+    ans = cursor.execute("SELECT * FROM USERS WHERE email = ?", (email,)).fetchall()
     
-    #If user with provided email and password already exists, redirect to the login page.
+    #If user with provided email and password already exists, close the database connection and render the signup page with an error message.
     if len(ans) > 0:
         Connection.close()
-        return render_template("login.html")
+        return render_template("signup.html", error="Email already exists")
+    
+    password_hash = generate_password_hash(password)
     
     #If user does not exist, insert new user into the USERS table with the provided username, email, and password.
-    else:
-        cursor.execute("INSERT INTO USERS (username, email, password) VALUES (?, ?, ?)", (username, email, password))
+    cursor.execute("INSERT INTO USERS (username, email, password) VALUES (?, ?, ?)", (username, email, password_hash))
     
     
     Connection.commit()
