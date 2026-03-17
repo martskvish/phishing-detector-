@@ -1,3 +1,7 @@
+#bs4 (BeautifulSoup) is a Python library used for web scraping and parsing HTML and XML documents. 
+#requests is a Python library used for making HTTP requests.
+
+from bs4 import BeautifulSoup
 import requests
 
 def decompose_url(url):
@@ -66,21 +70,31 @@ def extraxt_html_content(url):
     response = requests.get(url)
 
     #Check if the request was successful
-    if response.status_code == 200:
-        
-        #Get the HTML content as text
-        html_content = response.text
+    if response.status_code != 200:
+        print(f"Failed to retrieve page. Status code:", response.status_code)
 
-        #Print first 400000 characters
-        print(html_content[:400000])  
-    else:
-        print(f"Failed to retrieve page. Status code: {response.status_code}")
-    
     return response
 
 
-url = "https://advertools.readthedocs.io/en/master/advertools.urlytics.html#analyzing-a-large-number-of-urls"
-data = decompose_url(url)
-data2 = extraxt_html_content(url)
-print(data)
-print(data2)
+def extract_text_from_html(data3):
+
+    #unfiltered variable gets the HTML content from the response and parses it using BeautifulSoup.
+    #pases means it converts the raw HTML into a structured format that allows for easy navigation and extraction of specific elements.
+    unfiltered = BeautifulSoup(data3.text, 'html.parser')
+    
+    # tags that contain viable text: <p> — paragraphs<h1> to <h6> — headings<li> — list items<div> — containers<blockquote> — quotes<pre> — preformatted text<dd>, <dt> — description lists
+    # tags to remove: <script> — JavaScript code<style> — CSS code<head> — page metadata<nav> — navigation links<footer> — footer links<meta> — metadata<noscript> — fallback code
+    valid_tags = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'div', 'blockquote', 'pre', 'dd', 'dt']
+
+    #initalizes an empty string to store the extracted text.
+    extracted_text = " "
+
+    #iterates repetively through all the specified valid tags in the parsed HTML content.
+    #during each tag, it extracts the text content using get_text() method and appends it to the extracted_text string with a space in between for better readability.
+    for tag in unfiltered.find_all(valid_tags):
+        text = tag.get_text()
+        if text:
+            extracted_text += text + " "
+    return extracted_text
+
+ 

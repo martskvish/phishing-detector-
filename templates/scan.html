@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scan Results</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <main>
+        <h1>Scan Results</h1>
+
+        <h2>URL</h2>
+        <p><strong>Domain:</strong> {{ url.domain }}</p>
+        <p><strong>Protocol:</strong> {{ url.protocol }}</p>
+        <p><strong>Path:</strong> {{ url.path }}</p>
+        <p><strong>Query:</strong> {{ url.query }}</p>
+
+        <h2>Visible Text</h2>
+        <p>{{ visible_text }}</p>
+
+        <br>
+        <a href="/home">Go Back</a>
+    </main>
+</body>
+</html>

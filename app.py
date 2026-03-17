@@ -6,6 +6,9 @@ from flask import Flask, render_template, request, redirect
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
 
+#import funtions from element_extractor.py 
+from element_extractor import decompose_url, extract_html_content, extract_text_from_html
+
 
 '''
 import random
@@ -99,6 +102,20 @@ def add_user():
 
     #Redirect to the login page after successful registration.
     return redirect("/")
+
+#Defines a route for the /scan URL that accepts POST requests.
+@app.route("/scan", methods=["POST"])
+def scan():
+    #Retrieves the URL from the form data submitted by the user.
+    url = request.form.get('url')
+
+    #Use the functions from element_extractor.py to decompose the URL, extract HTML content, and extract text from the HTML content.
+    decompose_urld = decompose_url(url)
+    HTML_content = extract_html_content(url)
+    HTML_text_content = extract_text_from_html(HTML_content)
+
+    #Renders the scan.html template and passes the decomposed URL and visible text as variables.
+    return render_template("scan.html", url=decompose_urld, visible_text=HTML_text_content)
 
 #run the Flask application in debug mode.
 if __name__ == "__main__":

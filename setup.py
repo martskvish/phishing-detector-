@@ -1,7 +1,10 @@
+
+#used AI to generate setup code to load the database with the data for the phishing detection
+
 import sqlite3
 import os
 
-DB_PATH = "phishing_detection.db"
+DB_PATH = "sus_keywords.db"
 
 # ── Data ────────────────────────────────────────────────────────────────────
 
