@@ -82,11 +82,10 @@ def add_user():
     cursor = Connection.cursor()
 
     #Checks if user with provided email and password already exists.
-    ans = cursor.execute("SELECT * FROM USERS WHERE email = ?", (email,)).fetchall()
+    ans = cursor.execute("SELECT * FROM USERS WHERE email = ?", (email,)).fetchone()
     
     #If user with provided email and password already exists, close the database connection and render the signup page with an error message.
-    if len(ans) > 0:
-        Connection.close()
+    if ans is not None:
         return render_template("signup.html", error="Email already exists")
     
     password_hash = generate_password_hash(password)
