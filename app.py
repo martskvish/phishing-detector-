@@ -6,8 +6,8 @@ from flask import Flask, render_template, request, redirect
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
 
-#import funtions from element_extractor.py 
-from element_extractor import decompose_url, extract_html_content, extract_text_from_html
+#import funtions from element_extractor.py
+from element_extractor import decompose_url, extraxt_html_content, extract_text_from_html
 
 
 '''
@@ -111,7 +111,7 @@ def scan():
 
     #Use the functions from element_extractor.py to decompose the URL, extract HTML content, and extract text from the HTML content.
     decompose_urld = decompose_url(url)
-    HTML_content = extract_html_content(url)
+    HTML_content = extraxt_html_content(url)
     HTML_text_content = extract_text_from_html(HTML_content)
 
     #Renders the scan.html template and passes the decomposed URL and visible text as variables.
