@@ -5,7 +5,7 @@ import sqlite3
 #opens a connection to a SQLite database file named "users.db". If the file does not exist, it will be created. 
 #The connection object is stored in the variable connection. Establishes a connection so Python can send SQL commands.
 #A cursor allows the program to execute SQL commands.
-connection = sqlite3.connect("DB/users.db")
+connection = sqlite3.connect("users.db")
 cursor = connection.cursor()
 
 #command tells the database to create a table called USERS. Table will have three columns: username, email, and password.
