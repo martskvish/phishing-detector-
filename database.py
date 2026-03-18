@@ -11,11 +11,7 @@ cursor = connection.cursor()
 #command tells the database to create a table called USERS. Table will have three columns: username, email, and password.
 #email column is set as the primary key, which means it must be unique for each user and cannot be null. 
 #password column is also set to not allow null values.
-cmd1 = """CREATE TABLE IF NOT EXISTS USERS 
-    (id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username,
-    email,
-    password varchar(50) NOT NULL)"""
+cmd1 = """CREATE TABLE IF NOT EXISTS USERS (id INTEGER PRIMARY KEY AUTOINCREMENT, username, email, password varchar(50) NOT NULL)"""
 
 #sends the SQL command to SQLite.
 cursor.execute(cmd1)
@@ -27,8 +23,7 @@ try:
     #This SQL command inserts a new row into the USERS table.
     #Question marks are placeholders for the values that will be inserted into the table.
     #It prevents SQL injection attacks. 
-    cmd2 = """INSERT INTO USERS(username, email, password)
-    VALUES (?, ?, ?)"""
+    cmd2 = """INSERT INTO USERS(username, email, password) VALUES (?, ?, ?)"""
 
     #This inserts data into the table.
     #permanently saves changes to the database.

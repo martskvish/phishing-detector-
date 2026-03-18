@@ -7,9 +7,9 @@ import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
 from bs4 import BeautifulSoup
 
-#import funtions from element_extractor.py
-from element_extraction_analysis import decompose_url, extraxt_html_content, extract_text_from_html, HTMLtext_analysis, SQL_database_extraction
-
+#import funtions from extractor files
+from HTML_extraction_analysis import extraxt_html_content, extract_text_from_html, HTMLtext_analysis, SQL_database_extraction
+from URL_extraction_analysis import decompose_url
 
 
 #initalizes a flask applicatio and assigns it to the variable app. 

