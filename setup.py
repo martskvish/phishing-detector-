@@ -91,6 +91,8 @@ HTML_PHRASES = [
     ('unsubscribe',             'Low',       3),
     ('privacy policy',          'Low',       2),
     ('24 hours',                'Medium',    6),
+    ('limited offer',           'Medium',    6),
+    ('phishing',                 'Critical', 20),
 ]
 
 # ── Setup ────────────────────────────────────────────────────────────────────

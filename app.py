@@ -5,9 +5,10 @@
 from flask import Flask, render_template, request, redirect
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
+from bs4 import BeautifulSoup
 
 #import funtions from element_extractor.py
-from element_extraction_analysis import decompose_url, extraxt_html_content, extract_text_from_html
+from element_extraction_analysis import decompose_url, extraxt_html_content, extract_text_from_html, HTMLtext_analysis, SQL_database_extraction
 
 
 
@@ -104,13 +105,14 @@ def scan():
     #Retrieves the URL from the form data submitted by the user.
     url = request.form.get('url')
 
-    #Use the functions from element_extractor.py to decompose the URL, extract HTML content, and extract text from the HTML content.
+    #Decompose the URL, extract HTML content, extract visible text from the HTML and analyze the text for suspicious words.
     decompose_urld = decompose_url(url)
-    HTML_content = extraxt_html_content(url)
-    HTML_text_content = extract_text_from_html(HTML_content)
+    unfiltered_HTML = extraxt_html_content(url)
+    HTML_text_content = extract_text_from_html(unfiltered_HTML)
+    HTML_suswords = HTMLtext_analysis(HTML_text_content, SQL_database_extraction()[2])
 
     #Renders the scan.html template and passes the decomposed URL and visible text as variables.
-    return render_template("scan.html", url=decompose_urld, visible_text=HTML_text_content)
+    return render_template("scan.html", url=decompose_urld, visible_text=HTML_text_content, suswords=HTML_suswords)
 
 #run the Flask application in debug mode.
 if __name__ == "__main__":
