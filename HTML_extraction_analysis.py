@@ -19,6 +19,7 @@ def extraxt_html_content(url):
 
 def extract_text_from_html(unfiltered):
 
+    #Convert the raw HTML string into a structured, searchable tree object which is stored in filtered.
     filtered = BeautifulSoup(unfiltered.text, 'html.parser')
 
     #If the input is already a string, it will raise an AttributeError when trying to access the .text attribute.
@@ -46,27 +47,18 @@ def extract_text_from_html(unfiltered):
     return extracted_text
 
 
-def SQL_database_extraction():
+def SQL_HTML_database_extraction():
    
     #Connects to a SQLite database named sus_keywords.db and creates a cursor object to interact with the database.
     connection = sqlite3.connect("sus_keywords.db")
     cursor = connection.cursor() 
-
-
-    #Execute SQL command to retrieve all rows from the url_suspicious_keywords, url_suspicious_characters and html_suspicious_phrases tables.
-    cursor.execute("SELECT keyword, severity, weight FROM url_suspicious_keywords")
-    url_keywords = cursor.fetchall()
-
-    cursor.execute("SELECT keyword, severity, weight FROM url_suspicious_characters")
-    url_characters = cursor.fetchall()
 
     cursor.execute("SELECT keyword, severity, weight FROM html_suspicious_phrases")
     html_phrases = cursor.fetchall()
     
     #Close the database connection to free up resources and keep data safe.
     connection.close()
-    return url_keywords, url_characters, html_phrases
-
+    return html_phrases
 
 
 def HTMLtext_analysis(HTML_text, keywords):
@@ -92,10 +84,16 @@ def HTMLtext_analysis(HTML_text, keywords):
 
     return score, matched_keywords
 
-def HTML_tag_analyser(HTML_raw, domain):
+def HTML_tag_analyser(HTML_raw, full_domain):
 
+    #Only get SLD (second level domain) 
+    parts = full_domain.split(".")
+    domain = parts[-2]
+    
+    #Convert the raw HTML string into a structured, searchable tree object which is stored in filtered.
     filtered = BeautifulSoup(HTML_raw.text, 'html.parser')
 
+    #initialise score and matched_tags variable
     score = 0
     matched_tags = []
 
@@ -165,6 +163,7 @@ def HTML_tag_analyser(HTML_raw, domain):
             else:
                 score = score + 5
                 matched_tags.append(('Suspicious privacy link', 'High', 5))
+        
 
     return score, matched_tags
     

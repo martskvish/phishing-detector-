@@ -56,3 +56,6 @@ def decompose_url(url):
         "tld": tld,"subdomains": subdomains,"path": path,"query": query}
 
     return result
+
+
+

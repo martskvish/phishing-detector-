@@ -8,7 +8,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from bs4 import BeautifulSoup
 
 #import funtions from extractor files
-from HTML_extraction_analysis import extraxt_html_content, extract_text_from_html, HTMLtext_analysis, SQL_database_extraction
+from HTML_extraction_analysis import extraxt_html_content, extract_text_from_html, HTMLtext_analysis, SQL_HTML_database_extraction, HTML_tag_analyser
 from URL_extraction_analysis import decompose_url
 
 
@@ -109,10 +109,11 @@ def scan():
     decompose_urld = decompose_url(url)
     unfiltered_HTML = extraxt_html_content(url)
     HTML_text_content = extract_text_from_html(unfiltered_HTML)
-    HTML_suswords = HTMLtext_analysis(HTML_text_content, SQL_database_extraction()[2])
+    HTML_suswords = HTMLtext_analysis(HTML_text_content, SQL_HTML_database_extraction())
+    HTML_DETECTED_TAGS = HTML_tag_analyser(unfiltered_HTML, decompose_urld['domain'])
 
     #Renders the scan.html template and passes the decomposed URL and visible text as variables.
-    return render_template("scan.html", url=decompose_urld, visible_text=HTML_text_content, suswords=HTML_suswords)
+    return render_template("scan.html", url=decompose_urld, visible_text=HTML_text_content, suswords=HTML_suswords, detected_tags=HTML_DETECTED_TAGS)
 
 #run the Flask application in debug mode.
 if __name__ == "__main__":
