@@ -4,7 +4,7 @@
 import sqlite3
 import os
 
-DB_PATH = "sus_keywords.db"
+DB_PATH = "DB/sus_keywords.db"
 
 # ── Data ────────────────────────────────────────────────────────────────────
 

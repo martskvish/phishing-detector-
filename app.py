@@ -29,7 +29,7 @@ def login_verify():
     email = request.form.get('email')
     password = request.form.get('password')
 
-    Connection = sqlite3.connect("users.db")
+    Connection = sqlite3.connect("DB/users.db")
     cursor = Connection.cursor() 
 
     #This SQL command checks if there is a user in the USERS table with the provided email and password.
@@ -77,7 +77,7 @@ def add_user():
     password = request.form.get('password')
 
     #initializes connection to the SQLite database.
-    Connection = sqlite3.connect("users.db")
+    Connection = sqlite3.connect("DB/users.db")
     cursor = Connection.cursor()
 
     #Checks if user with provided email already exists.

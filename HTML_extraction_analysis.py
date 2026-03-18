@@ -50,7 +50,7 @@ def extract_text_from_html(unfiltered):
 def SQL_HTML_database_extraction():
    
     #Connects to a SQLite database named sus_keywords.db and creates a cursor object to interact with the database.
-    connection = sqlite3.connect("sus_keywords.db")
+    connection = sqlite3.connect("DB/sus_keywords.db")
     cursor = connection.cursor() 
 
     cursor.execute("SELECT keyword, severity, weight FROM html_suspicious_phrases")
