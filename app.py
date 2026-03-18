@@ -7,18 +7,13 @@ import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
 
 #import funtions from element_extractor.py
-from element_extractor import decompose_url, extraxt_html_content, extract_text_from_html
+from element_extraction_analysis import decompose_url, extraxt_html_content, extract_text_from_html
 
 
-'''
-import random
-'''
+
 #initalizes a flask applicatio and assigns it to the variable app. 
 app = Flask(__name__)
 
-'''
-app.secret_key = str(random.randint(1, 40))
-'''
 
 #define route for the root URL ("/") and associates it with the login function.
 #When a user visits the root URL, login function is called and  "login.html" template is rendered whcih is sent back to the user's browser.
@@ -84,7 +79,7 @@ def add_user():
     Connection = sqlite3.connect("users.db")
     cursor = Connection.cursor()
 
-    #Checks if user with provided email and password already exists.
+    #Checks if user with provided email already exists.
     ans = cursor.execute("SELECT * FROM USERS WHERE email = ?", (email,)).fetchone()
     
     #If user with provided email and password already exists, close the database connection and render the signup page with an error message.
