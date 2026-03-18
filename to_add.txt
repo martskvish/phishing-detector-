@@ -1,0 +1,3 @@
+-add URL analysis functions
+-add copyright detection
+-implement overall scoring system
