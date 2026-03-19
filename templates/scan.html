@@ -10,10 +10,13 @@
         <h1>Scan Results</h1>
 
         <h2>URL</h2>
-        <p><strong>Domain:</strong> {{ url.domain }}</p>
         <p><strong>Protocol:</strong> {{ url.protocol }}</p>
+        <p><strong>subdomain:</strong> {{ url.subdomains }} </p>
+        <p><strong>Domain:</strong> {{ url.main_domain }}</p>
+        <p><strong>TLD:</strong> {{ url.tld }}</p>
         <p><strong>Path:</strong> {{ url.path }}</p>
         <p><strong>Query:</strong> {{ url.query }}</p>
+        
 
         <details>
             <summary>Visible Text</summary>
@@ -21,13 +24,17 @@
         </details>
     
 
-        <h2>Suspicious Words</h2>
+        <h2>Suspicious Words and Score</h2>
         <p>{{ suswords }}</p>
+        <p>{{ HTMLtext_analysis_score }}</p>
 
         <h2>Detected Tags</h2>
         <p><strong>Score:</strong> {{ detected_tags[0] }}</p>
         <p>{{ detected_tags[1] }}</p>
 
+        <h2>Domain Distance</h2>
+        <p><strong>Closest Domain:</strong> {{ domain_distance[0] }}</p>
+        <p><strong>Distance Score:</strong> {{ domain_distance[1] }}</p>
         <br>
         <a href="/home">Go Back</a>
     </main>
