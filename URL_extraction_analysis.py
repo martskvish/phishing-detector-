@@ -1,3 +1,6 @@
+import sqlite3
+
+
 def decompose_url(url):
 
     # initializes variables to store different components of the URL.
@@ -56,6 +59,58 @@ def decompose_url(url):
         "tld": tld,"subdomains": subdomains,"path": path,"query": query}
 
     return result
+
+
+
+
+def SQL_URL_database_extraction():
+   
+    #Connects to a SQLite database named sus_keywords.db and creates a cursor object to interact with the database.
+    connection = sqlite3.connect("DB/sus_keywords.db")
+    cursor = connection.cursor() 
+
+    cursor.execute("SELECT keyword, severity, weight FROM url_suspicious_characters")
+    html_phrases = cursor.fetchall()
+
+    cursor.execute("SELECT keyword, severity, weight FROM url_suspicious_characters")
+    html_phrases = cursor.fetchall()
+    
+    #Close the database connection to free up resources and keep data safe.
+    connection.close()
+    return html_phrases
+
+def levenshteins_distance_URL(domain, cert_domain):
+    
+    len_domain = len(domain) # n
+    len_cert_domain = len(cert_domain) # m
+
+
+    #Create 2D array with first colume and row representing characters from each string
+    dp = [[0] * (len_domain + 1) for _ in range(len_cert_domain + 1)]
+
+    #In first column insert numbers one growing by 1 representing each character 
+    for i in range(len_domain +1):
+            dp[i][0] = i
+
+    #In first row insert numbers one growing by 1 representing each character 
+    for j in range(len_cert_domain + 1):
+            dp[0][j] = j
+
+
+    #Loop through every value in the 2D array, skip the borders which are alreday filled.
+    #If same indexed characters from both strings are same copy previous value.
+    #Else get lowest value from top, top left and left neighbours and plus 1.
+    for i in range(1, len_cert_domain + 1):
+        for j in range(1, len_domain + 1):
+                    if domain[i-1] == cert_domain[j-1]:
+                        dp[i][j]= dp[i-1][j-1]
+                    else:
+                        dp[i][j] = min(dp[i-1][j-1], dp[i-1][j], dp[i][j-1])
+
+
+        #return final/bottom right value
+        return dp[len_cert_domain][len_domain]
+
 
 
 
