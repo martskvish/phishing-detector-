@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 
 #import funtions from extractor files
 from HTML_extraction_analysis import extraxt_html_content, extract_text_from_html, HTMLtext_analysis, SQL_HTML_database_extraction, HTML_tag_analyser
-from URL_extraction_analysis import decompose_url, levenshteins_distance_URL
+from URL_extraction_analysis import decompose_url, levenshteins_distance_domain
 
 
 #initalizes a flask applicatio and assigns it to the variable app. 
@@ -111,7 +111,7 @@ def scan():
     HTML_text_content = extract_text_from_html(unfiltered_HTML)
     HTML_sus_score, HTML_sus_keywords = HTMLtext_analysis(HTML_text_content, SQL_HTML_database_extraction())
     HTML_DETECTED_TAGS = HTML_tag_analyser(unfiltered_HTML, decompose_urld['domain'])
-    Domain_distance = levenshteins_distance_URL(decompose_urld['domain'])
+    Domain_distance = levenshteins_distance_domain(decompose_urld['domain'])
 
     #Renders the scan.html template and passes the decomposed URL and visible text as variables.
     return render_template("scan.html", url=decompose_urld, visible_text=HTML_text_content, HTMLtext_analysis_score=HTML_sus_score, suswords=HTML_sus_keywords, detected_tags=HTML_DETECTED_TAGS,

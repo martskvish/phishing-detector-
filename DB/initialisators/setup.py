@@ -1,4 +1,3 @@
-
 #used AI to generate setup code to load the database with the data for the phishing detection
 
 import sqlite3
@@ -9,55 +8,86 @@ DB_PATH = "DB/sus_keywords.db"
 # ── Data ────────────────────────────────────────────────────────────────────
 
 URL_CHARACTERS = [
-    ('@',  'High',   15),
-    ('-',  'Medium',  8),
-    ('..', 'Medium',  5),
-    ('%',  'Medium',  8),
-    ('//', 'High',   12),
-    ('?',  'Low',     3),
-    ('=',  'Low',     2),
-    ('&',  'Low',     2),
-    ('#',  'Low',     3),
-    ('~',  'Low',     4),
-    ('_',  'Medium',  6),
-    (';',  'Medium',  6),
-    ('!',  'Low',     3),
-    ('$',  'Low',     4),
-    ('*',  'Low',     3),
-    ('+',  'Low',     2),
+    ('@',   'High',   15),  # hides real domain e.g. google.com@evil.com
+    ('%',   'High',   10),  # URL encoding used to hide malicious content
+    ('..',  'High',   10),  # directory traversal
+    ('//',  'Medium',  6),  # double slash after protocol
+    (';',   'Medium',  6),  # uncommon in URLs
+    ('|',   'High',   10),  # very suspicious
+    ('`',   'High',   10),  # very suspicious
+    ('~',   'Medium',  5),  # uncommon
+    ('$',   'Medium',  5),  # uncommon
+    ('!',   'Medium',  5),  # uncommon in URLs
+    ('*',   'High',    8),  # wildcard, suspicious
+    (',',   'Medium',  5),  # uncommon in URLs
 ]
 
-URL_KEYWORDS = [
-    ('secure',    'Medium',  6),
-    ('login',     'High',   10),
-    ('verify',    'High',   10),
-    ('update',    'High',    8),
-    ('account',   'Medium',  7),
-    ('confirm',   'High',    8),
-    ('signin',    'High',   10),
-    ('bank',      'High',   10),
-    ('paypal',    'High',   15),
-    ('apple',     'High',   12),
-    ('amazon',    'High',   12),
-    ('microsoft', 'High',   12),
-    ('google',    'High',   12),
-    ('ebay',      'High',   10),
-    ('support',   'Medium',  6),
-    ('password',  'High',   10),
-    ('reset',     'High',    8),
-    ('alert',     'Medium',  5),
-    ('suspended', 'High',    9),
-    ('limited',   'Medium',  6),
-    ('expire',    'Medium',  6),
-    ('free',      'Low',     3),
-    ('prize',     'Medium',  5),
-    ('winner',    'Medium',  5),
-    ('click',     'Low',     3),
-    ('redirect',  'Medium',  7),
-    ('token',     'Medium',  6),
-    ('session',   'Medium',  5),
-    ('checkout',  'High',    8),
-    ('webscr',    'High',   12),
+SUBDOMAIN_KEYWORDS = [
+    ('login',        'High',   10),
+    ('signin',       'High',   10),
+    ('sign-in',      'High',   10),
+    ('secure',       'High',    8),
+    ('verify',       'High',    9),
+    ('account',      'Medium',  6),
+    ('update',       'High',    8),
+    ('confirm',      'High',    8),
+    ('banking',      'High',   10),
+    ('support',      'Medium',  6),
+    ('authenticate', 'High',   10),
+    ('portal',       'Medium',  6),
+    ('admin',        'High',    9),
+    ('mail',         'Medium',  5),
+    ('webmail',      'High',    8),
+    ('safe',         'Medium',  6),
+    ('security',     'High',    8),
+    ('helpdesk',     'Medium',  6),
+    ('alerts',       'High',    8),
+    ('paypal',       'High',   15),
+    ('apple',        'High',   12),
+    ('amazon',       'High',   12),
+    ('microsoft',    'High',   12),
+    ('google',       'High',   12),
+    ('ebay',         'High',   10),
+    ('netflix',      'High',   10),
+    ('facebook',     'High',   10),
+    ('finance',      'High',   10),
+]
+
+PATH_KEYWORDS = [
+    # Account related
+    ('login',        'High',   10),
+    ('signin',       'High',   10),
+    ('sign-in',      'High',   10),
+    ('verify',       'High',    9),
+    ('confirm',      'High',    8),
+    ('reset',        'High',    8),
+    ('password',     'High',   12),
+    ('credential',   'High',   12),
+    ('update',       'High',    8),
+    ('recover',      'High',    8),
+    ('unlock',       'High',    8),
+
+    # Financial
+    ('checkout',     'High',    8),
+    ('payment',      'High',    8),
+    ('billing',      'High',    8),
+    ('invoice',      'High',    8),
+    ('refund',       'High',    8),
+    ('wallet',       'High',    8),
+
+    # Technical suspicious
+    ('webscr',       'High',   12),
+    ('wp-admin',     'High',   12),
+    ('admin',        'High',    9),
+    ('redirect',     'High',    9),
+    ('token',        'Medium',  6),
+    ('session',      'Medium',  5),
+    ('suspended',    'High',   10),
+    ('alert',        'High',    8),
+    ('support',      'Medium',  6),
+    ('portal',       'Medium',  6),
+    ('submit',       'Medium',  5),
+    ('authenticate', 'High',   10),
 ]
 
 HTML_PHRASES = [
@@ -92,8 +122,19 @@ HTML_PHRASES = [
     ('privacy policy',          'Low',       2),
     ('24 hours',                'Medium',    6),
     ('limited offer',           'Medium',    6),
-    ('phishing',                 'Critical', 20),
-    ('free',                     'Low',       4),
+    ('phishing',                'Critical', 20),
+    ('free',                    'Low',       4),
+    # Added
+    ('verify your identity',    'Critical', 20),
+    ('enter your password',     'Critical', 18),
+    ('your card has been',      'Critical', 18),
+    ('unusual activity',        'High',     12),
+    ('suspicious activity',     'High',     12),
+    ('click the link below',    'High',     10),
+    ('your account expires',    'High',     10),
+    ('winner',                  'Medium',    6),
+    ('prize',                   'High',      8),
+    ('you have won',            'High',      8),
 ]
 
 # ── Setup ────────────────────────────────────────────────────────────────────
@@ -107,7 +148,14 @@ def create_tables(cursor):
             weight   INTEGER NOT NULL
         );
 
-        CREATE TABLE IF NOT EXISTS url_suspicious_keywords (
+        CREATE TABLE IF NOT EXISTS url_subdomain_keywords (
+            id       INTEGER PRIMARY KEY AUTOINCREMENT,
+            keyword  TEXT    NOT NULL,
+            severity TEXT    NOT NULL,
+            weight   INTEGER NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS url_path_keywords (
             id       INTEGER PRIMARY KEY AUTOINCREMENT,
             keyword  TEXT    NOT NULL,
             severity TEXT    NOT NULL,
@@ -129,8 +177,12 @@ def insert_data(cursor):
         URL_CHARACTERS
     )
     cursor.executemany(
-        "INSERT INTO url_suspicious_keywords (keyword, severity, weight) VALUES (?, ?, ?)",
-        URL_KEYWORDS
+        "INSERT INTO url_subdomain_keywords (keyword, severity, weight) VALUES (?, ?, ?)",
+        SUBDOMAIN_KEYWORDS
+    )
+    cursor.executemany(
+        "INSERT INTO url_path_keywords (keyword, severity, weight) VALUES (?, ?, ?)",
+        PATH_KEYWORDS
     )
     cursor.executemany(
         "INSERT INTO html_suspicious_phrases (keyword, severity, weight) VALUES (?, ?, ?)",
@@ -141,7 +193,8 @@ def insert_data(cursor):
 def print_summary(cursor):
     tables = [
         "url_suspicious_characters",
-        "url_suspicious_keywords",
+        "url_subdomain_keywords",
+        "url_path_keywords",
         "html_suspicious_phrases",
     ]
     print("\n--- Database Summary ---")
