@@ -60,9 +60,7 @@ def decompose_url(url):
 
     return result
 
-
-
-
+''''
 def SQL_URL_database_extraction():
    
     #Connects to a SQLite database named sus_keywords.db and creates a cursor object to interact with the database.
@@ -76,6 +74,7 @@ def SQL_URL_database_extraction():
     connection.close()
     return url_phrases
 
+'''
 def levenshteins_distance_domain(domain):
     
     len_domain = len(domain)  
@@ -127,7 +126,7 @@ def levenshteins_distance_domain(domain):
     connection.close()
     return closest_domain, lowest_distnace
             
-def analyse_subdomain(subdomain, path):
+def analyse_subdomain_path(subdomain, path):
      
     
     #Connect to a SQLite database names sus_keyword.db and use cursor objects to interact with each table.
@@ -144,55 +143,44 @@ def analyse_subdomain(subdomain, path):
     detected_subdomains = []
     detected_chars = []
     detected_words_path = []
-    total_score_pathwords = 0
-    total_score_words = 0
-    total_score_chars = 0
     total_score = 0 
 
-    #MAYBE IMPLEMENT levenshteins_distance_sub_domain
-    for row in subdomain_rows.lower():
+    #MAYBE IMPLEMENT levenshteins_distance_sub_domain.
+    #Check if subdomain contains suspicious words.
+    #
+    subdomain_str = ''.join(subdomain)
+    for row in subdomain_rows:
         sus_domain = row[1]
         severity = row[2]
         weight = row[3]
- 
 
-        if sus_domain in subdomain.lower():
-            total_score_words = total_score_words + weight
+
+        if sus_domain in subdomain_str.lower():
+            total_score = total_score + weight
             detected_subdomains.append((sus_domain, severity, weight))
 
+
+    #Check if URL's path contains suspicious characters.
     for row in character_rows:
         char = row[1]
         severity = row[2]
         weight = row[3]
 
         if char in path:
-            total_score_chars = total_score_chars + weight
+            total_score = total_score + weight
             detected_chars.append((char, severity, weight))
     
-    for row in path_rows.lower():
+    #Check if URL's path contains suspicious words.
+    for row in path_rows:
         word = row[1]
         severity = row[2]
         weight = row[3]
 
         if word in path.lower():
-            total_score_pathwords = total_score_pathwords + weight
+            total_score = total_score + weight
             detected_words_path.append((char, severity, weight))
 
-    total_score = total_score_chars + total_score_words + total_score_pathwords
-
+    #Close connection and return detected elements
     connection.close()
     return detected_subdomains, detected_chars, detected_words_path, total_score
-
-    
              
-
-
-
-
-
-
-
-
-
-
-
