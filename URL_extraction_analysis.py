@@ -76,11 +76,12 @@ def SQL_URL_database_extraction():
 
 '''
 def levenshteins_distance_domain(domain):
+    
 
-    # Remove www. prefix if present
+    # Remove www. prefix if presen
     if domain.startswith("www."):
         domain = domain[4:]
-
+        
     len_domain = len(domain)  
     
     #initializes variables

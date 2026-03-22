@@ -1,7 +1,6 @@
 #bs4 (BeautifulSoup) is a Python library used for web scraping and parsing HTML and XML documents. 
 #requests is a Python library used for making HTTP requests.
 
-from pydoc import text
 import sqlite3
 from bs4 import BeautifulSoup
 import requests
@@ -19,8 +18,6 @@ def extraxt_html_content(url):
     except requests.exceptions.ConnectionError as error:
         print(f"connection error: {error}")
         return None
-
-
 
 def extract_text_from_html(unfiltered):
 
@@ -51,7 +48,6 @@ def extract_text_from_html(unfiltered):
             extracted_text += text + " "
     return extracted_text
 
-
 def SQL_HTML_database_extraction():
    
     #Connects to a SQLite database named sus_keywords.db and creates a cursor object to interact with the database.
@@ -64,7 +60,6 @@ def SQL_HTML_database_extraction():
     #Close the database connection to free up resources and keep data safe.
     connection.close()
     return html_phrases
-
 
 def HTMLtext_analysis(HTML_text, keywords):
 
@@ -171,4 +166,3 @@ def HTML_tag_analyser(HTML_raw, full_domain):
         
 
     return score, matched_tags
-    
