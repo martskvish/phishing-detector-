@@ -55,6 +55,12 @@ def login_verify():
         else:
             return redirect("/")
 
+#Define route for logout
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect("/")
+
 #This defines a route for the /home URL. 
 #When user visits the /home URL, home function is called.
 #request.args.get() Retrieves username and email from the query parameters in the URL.
@@ -96,6 +102,7 @@ def add_user():
     if ans is not None:
         return render_template("signup.html", error="Email already exists")
     
+    #Generate password hash to protect real password 
     password_hash = generate_password_hash(password)
     
     #If user does not exist, insert new user into the USERS table with the provided username, email, and password.
@@ -112,7 +119,7 @@ def add_user():
 @app.route("/scan", methods=["POST"])
 def scan():
 
-    if 'user_id' not in session:
+    if "user_id" not in session:
         return redirect("/")
 
     #Pass current time and date to time variable.
@@ -154,11 +161,11 @@ def scan():
 
 
 
-@app.route("/history")
+@app.route("/history",  methods=["GET"])
 def scan_history():
 
-    #Check if user has been redierected 
-    if 'user_id' not in session:
+    #Check if user is logged in and session has user_id, to stop unauthorized access.
+    if "user_id" not in session:
         return redirect("/")
     
 
