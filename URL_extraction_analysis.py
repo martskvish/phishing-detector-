@@ -76,7 +76,7 @@ def SQL_URL_database_extraction():
 
 '''
 def levenshteins_distance_domain(domain):
-    
+    #In Project.docx explain lavenshteins distance
 
     # Remove www. prefix if presen
     if domain.startswith("www."):

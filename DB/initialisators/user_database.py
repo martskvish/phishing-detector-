@@ -20,8 +20,11 @@ cursor.execute(cmd1)
 #Command tells the database to create a table called USERS. Table will have three columns: id, URL, TIMEDATE and TOTALSCORE.
 
 cmd2 = """CREATE TABLE IF NOT EXISTS history (id INTEGER PRIMARY KEY AUTOINCREMENT, URL, TIMEDATE, TOTALSCORE)"""
+cmd3 = """CREATE TABLE IF NOT EXISTS user_history_link (id INTEGER PRIMARY KEY AUTOINCREMENT, 
+           user_id INTEGER NOT NULL, history_id INTEGER NOT NULL)"""
 
 cursor.execute(cmd2)
+cursor.execute(cmd3)
 
 connection.commit()
 connection.close()

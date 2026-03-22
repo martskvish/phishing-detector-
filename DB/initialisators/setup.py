@@ -190,21 +190,6 @@ def insert_data(cursor):
     )
 
 
-def print_summary(cursor):
-    tables = [
-        "url_suspicious_characters",
-        "url_subdomain_keywords",
-        "url_path_keywords",
-        "html_suspicious_phrases",
-    ]
-    print("\n--- Database Summary ---")
-    for table in tables:
-        cursor.execute(f"SELECT COUNT(*) FROM {table}")
-        count = cursor.fetchone()[0]
-        print(f"  {table}: {count} rows")
-    print("------------------------\n")
-
-
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 def main():

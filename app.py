@@ -8,7 +8,7 @@ import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
 import datetime
 
-#import funtions from extractor files
+#Import funtions from extractor files
 from HTML_extraction_analysis import extraxt_html_content, extract_text_from_html, HTMLtext_analysis, SQL_HTML_database_extraction, HTML_tag_analyser
 from URL_extraction_analysis import decompose_url, levenshteins_distance_domain, analyse_subdomain_path
 
@@ -20,7 +20,7 @@ app = Flask(__name__)
 app.secret_key = "3d6f45a5fc12445dbac2f59c3b1c97364"
 
 
-#Define route for the root URL ("/") and associates it with the login function.
+#Define route for the root URL "/" and associates it with the login function.
 #When a user visits the root URL, login function is called and  "login.html" template is rendered whcih is sent back to the user's browser.
 @app.route("/")
 def login():
@@ -130,7 +130,7 @@ def scan():
     URL_path_subdomain_analysis = analyse_subdomain_path(decompose_urld['subdomains'],decompose_urld['path'])
 
     #calculate overall score.
-    total_score = HTML_sus_score + Domain_distance[1] + URL_path_subdomain_analysis[3]
+    total_score = HTML_sus_score + HTML_DETECTED_TAGS[0] + Domain_distance[1] + URL_path_subdomain_analysis[3]
 
     #initailize connection.
     Connection = sqlite3.connect("DB/users.db")
@@ -138,36 +138,51 @@ def scan():
 
 
     #Insert scan data into history table.
-    #Get the id of scan which was just automaticaly assigned to row 
+    #Get the id of scan which was just automaticaly assigned to row.
     cursor.execute("INSERT INTO history (URL, TIMEDATE, TOTALSCORE) VALUES (?, ?, ?)", (url, time, total_score))
     scan_id = cursor.lastrowid
 
-    #Get previusly store IDs
-    history_ids = cursor.execute("SELECT historyID FROM USERS WHERE id=?", (session["user_id"],)).fetchone()
-
-    #If there are no previus IDs insert scan_id.
-    #If there are previous IDs concatanate value of new ID to old IDS.
-    if history_ids[0] is None or history_ids is None:
-        update = str(scan_id)
-    else:
-        update = str(history_ids[0]) + "," + str(scan_id)
-
-    #Insert updated IDs
-    cursor.execute("UPDATE USERS SET historyID=? where id=?", (update, session["user_id"])) 
+    cursor.execute("INSERT INTO user_history_link (user_id, history_id) VALUES (?, ?)", (session["user_id"], scan_id))
 
     #Commit and update database.
     Connection.commit()
     Connection.close()
 
-    #Renders the scan.html template and passes the decomposed URL and visible text as variables.
-    return render_template("scan.html", url=decompose_urld, visible_text=HTML_text_content, HTMLtext_analysis_score=HTML_sus_score, suswords=HTML_sus_keywords, 
-                           detected_tags=HTML_DETECTED_TAGS, domain_distance = Domain_distance, path_subdomain_analysis = URL_path_subdomain_analysis)
+    #Renders the scan.html template and passes the decomposed URL, visible text, distance of domain, suspicious words and characters as variables.
+    return render_template("scan.html", url=decompose_urld, visible_text=HTML_text_content, HTMLtext_analysis_score=HTML_sus_score, suswords=HTML_sus_keywords,
+                           detected_tags=HTML_DETECTED_TAGS, domain_distance = Domain_distance, path_subdomain_analysis = URL_path_subdomain_analysis, total_score=total_score)
 
 
-'''
+
 @app.route("/history")
 def scan_history():
-'''
+
+    #Check if user has been redierected 
+    if 'user_id' not in session:
+        return redirect("/")
+    
+
+    #Initaliaze connection to user database
+    Connection = sqlite3.connect("DB/users.db")
+    cursor = Connection.cursor()
+
+    #Fetch all IDs of past scans which have provided user_id associated
+    history_ids = cursor.execute("SELECT history_id FROM user_history_link WHERE user_id = ?", (session["user_id"],)).fetchall()
+
+    #Turn outputed tuple from sql query to list
+    result = []
+    for index in history_ids:
+        result.append(index[0])
+
+    #Append every scan corresponding to extracted scan IDs
+    scans = []
+    for i in result:    
+        scan_data= cursor.execute("SELECT * FROM history WHERE id = ?", (i,)).fetchone()
+        scans.append(scan_data)
+
+    #Renders /history.html and passes scans as list reversed to show newest scan first.
+    return render_template("/history.html", scans_list= scans[::-1])
+
 
 #Run the Flask application.
 #With debug mode on to get more info about errors/bugs.
