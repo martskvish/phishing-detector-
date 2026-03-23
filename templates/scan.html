@@ -42,8 +42,8 @@
 
         <h2>URL analysis</h2>
         <p><strong>suspicious words in subdomain</strong> {{ path_subdomain_analysis[0] }}</p>
-        <p><strong>suspicious charsacters in path</strong> {{ path_subdomain_analysis[1] }}</p>
-        <p><strong>suspicious charsacters in path</strong> {{ path_subdomain_analysis[2] }}</p>
+        <p><strong>suspicious charsacters in path or query</strong> {{ path_subdomain_analysis[1] }}</p>
+        <p><strong>suspicious charsacters in path or query</strong> {{ path_subdomain_analysis[2] }}</p>
         <p><strong>URL suspicious score</strong> {{ path_subdomain_analysis[3] }}</p>
 
         <h2>Protocol analysis</h2>
@@ -52,6 +52,8 @@
 
         <h2>Total Score</h2>
         <p><strong>{{ total_score }}</strong></p>
+        <h2>Classification</h2>
+        <p><strong>{{ web_classification }}</strong></p>
         <a href="/home">Go Back</a>
     </main>
 </body>

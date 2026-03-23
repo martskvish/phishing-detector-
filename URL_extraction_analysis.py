@@ -153,15 +153,15 @@ def protocol_analysis(protocol):
     #Return tuple (protocol_info, score)
     
     if protocol.lower() == "https":
-        return ("HTTPS (Secure)", 0)
+        return ("HTTPS (Secure)", -20)
     elif protocol.lower() == "http":
         return ("HTTP (Not Encrypted)", 20)
     elif protocol == "":
-        return ("No Protocol", 15)
+        return ("No Protocol", 10)
     else:
-        return (f"{protocol} (Unknown)", 15)
+        return ( "Unknown protocol", 15)
 
-def analyse_subdomain_path(subdomain, path):
+def analyse_subdomain_path(subdomain, path, query):
      
     
     #Connect to a SQLite database names sus_keyword.db and use cursor objects to interact with each table.
@@ -195,13 +195,13 @@ def analyse_subdomain_path(subdomain, path):
             detected_subdomains.append((sus_domain, severity, weight))
 
 
-    #Check if URL's path contains suspicious characters.
+    #Check if URL's path and query contains suspicious characters.
     for row in character_rows:
         char = row[1]
         severity = row[2]
         weight = row[3]
 
-        if char in path:
+        if char in path or char in query:
             total_score = total_score + weight
             detected_chars.append((char, severity, weight))
     

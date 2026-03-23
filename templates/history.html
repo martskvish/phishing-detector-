@@ -15,6 +15,7 @@
             <th>URL</th>
             <th>Date</th>
             <th>Score</th>
+            <th>Classification</th>
         </tr>
         {% for section in scans_list %}
         <tr>
@@ -22,6 +23,7 @@
             <td>{{ section[1] }}</td>
             <td>{{ section[2] }}</td>
             <td>{{ section[3] }}</td>
+            <td>{{ section[4] }}</td>
         </tr>
         {% endfor %}
     </table>

@@ -136,11 +136,24 @@ def scan():
     HTML_sus_score, HTML_sus_keywords = HTMLtext_analysis(HTML_text_content, SQL_HTML_database_extraction())
     HTML_DETECTED_TAGS = HTML_tag_analyser(unfiltered_HTML, decompose_urld["domain"])
     Domain_distance = levenshteins_distance_domain(decompose_urld["domain"])
-    URL_path_subdomain_analysis = analyse_subdomain_path(decompose_urld["subdomains"],decompose_urld['path'])
+    URL_path_subdomain_analysis = analyse_subdomain_path(decompose_urld["subdomains"],decompose_urld["path"],decompose_urld["query"])
     protocol_score = protocol_analysis(decompose_urld["protocol"])
 
     #calculate overall score.
     total_score = HTML_sus_score + HTML_DETECTED_TAGS[0] + Domain_distance[1] + URL_path_subdomain_analysis[3] + protocol_score[1] + Domain_distance[3]
+    
+    overall_classification = ""
+    if total_score <= 0:
+        overall_classification = "Safe"
+    elif total_score <= 25:
+        overall_classification = "Low Risk"
+    elif total_score <= 50:
+        overall_classification = "Suspicious"
+    elif total_score <= 90:
+        overall_classification = "Likely Phishing"
+    else:
+        overall_classification = "Phishing"
+
     #initailize connection.
     Connection = sqlite3.connect("DB/users.db")
     cursor = Connection.cursor()
@@ -148,7 +161,7 @@ def scan():
 
     #Insert scan data into history table.
     #Get the id of scan which was just automaticaly assigned to row.
-    cursor.execute("INSERT INTO history (URL, TIMEDATE, TOTALSCORE) VALUES (?, ?, ?)", (url, time, total_score))
+    cursor.execute("INSERT INTO history (URL, TIMEDATE, TOTALSCORE, CLASSIFICATION) VALUES (?, ?, ?, ?)", (url, time, total_score, overall_classification))
     scan_id = cursor.lastrowid
 
     cursor.execute("INSERT INTO user_history_link (user_id, history_id) VALUES (?, ?)", (session["user_id"], scan_id))
@@ -160,7 +173,7 @@ def scan():
     #Renders the scan.html template and passes the decomposed URL, visible text, distance of domain, suspicious words and characters as variables.
     return render_template("scan.html", url=decompose_urld, visible_text=HTML_text_content, HTMLtext_analysis_score=HTML_sus_score, suswords=HTML_sus_keywords,
                            detected_tags=HTML_DETECTED_TAGS, domain_distance = Domain_distance, path_subdomain_analysis = URL_path_subdomain_analysis, total_score=total_score,
-                           protocol=protocol_score)
+                           protocol=protocol_score, web_classification = overall_classification)
 
 @app.route("/history",  methods=["GET"])
 def scan_history():
