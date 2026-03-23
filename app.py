@@ -19,7 +19,6 @@ app = Flask(__name__)
 #Used to sign/encrypt the session cookie stored in the user's browser so it can't be tampered with
 app.secret_key = "3d6f45a5fc12445dbac2f59c3b1c97364"
 
-
 #Define route for the root URL "/" and associates it with the login function.
 #When a user visits the root URL, login function is called and  "login.html" template is rendered whcih is sent back to the user's browser.
 @app.route("/")
@@ -142,6 +141,7 @@ def scan():
     #calculate overall score.
     total_score = HTML_sus_score + HTML_DETECTED_TAGS[0] + Domain_distance[1] + URL_path_subdomain_analysis[3] + protocol_score[1] + Domain_distance[3]
     
+    #Compare score to thresholds and classify website
     overall_classification = ""
     if total_score <= 0:
         overall_classification = "Safe"
@@ -203,7 +203,6 @@ def scan_history():
 
     #Renders /history.html and passes scans as list reversed to show newest scan first.
     return render_template("/history.html", scans_list= scans[::-1])
-
 
 #Run the Flask application.
 #With debug mode on to get more info about errors/bugs.

@@ -1,29 +1,21 @@
+#Import sqlite3 to connect and interact with SQL database.
 import sqlite3
 
-# Read domains from text file
-with open("DB/domain.txt", "r") as f:
-    lines = [line.strip() for line in f.readlines()]
+#Initailize connection to database
+connection = sqlite3.connect("DB/cert_domain.db")
+cursor = connection.cursor()
 
-# Connect to database
-conn = sqlite3.connect("DB/cert_domain.db")
-cursor = conn.cursor()
+#Create certified domain names' database.
+cursor.execute("CREATE TABLE IF NOT EXISTS domains (id INTEGER PRIMARY KEY, domain TEXT)")
 
-# Create table
-cursor.execute("""
-    CREATE TABLE IF NOT EXISTS domains (
-        id INTEGER PRIMARY KEY,
-        domain TEXT NOT NULL
-    )
-""")
+#Open DB/domain.txt where domains are stored using read method.
+#Takes line from character, strips whitespaces and splits string in two parts before TAB character and after TAB character.
+#After inserts first part as a integer and second part as tring into certified domain database.
+with open("DB/initialisators/domain.txt", "r") as f:
+    for line in f:
+        parts = line.strip().split("\t")
+        cursor.execute("INSERT INTO domains VALUES (?, ?)", (int(parts[0]), parts[1]))
 
-# Insert all domains
-for line in lines:
-    # Split on tab to get id and domain
-    parts = line.split("\t")
-    id = int(parts[0])
-    domain = parts[1]
-    cursor.execute("INSERT INTO domains VALUES (?, ?)", (id, domain))
-
-conn.commit()
-conn.close()
-print(f"Done! Loaded {len(lines)} domains into database.")
+#Commit changes and close connection
+connection.commit()
+connection.close()
