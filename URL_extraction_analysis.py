@@ -76,6 +76,8 @@ def SQL_URL_database_extraction():
 
 '''
 def levenshteins_distance_domain(domain):
+
+
     #In Project.docx explain lavenshteins distance
 
     # Remove www. prefix if presen
@@ -85,7 +87,7 @@ def levenshteins_distance_domain(domain):
     len_domain = len(domain)  
     
     #initializes variables
-    lowest_distnace = float('inf')
+    lowest_distance = float('inf')
     closest_domain = ""
 
     #Connect to a SQLite database names cert_domain.db and use cursor to interact with DB.
@@ -123,14 +125,42 @@ def levenshteins_distance_domain(domain):
         distance = array[len_cert_domain][len_domain]
 
         #Store lowest dsitance and closes domain to original domain.
-        if distance < lowest_distnace:
-            lowest_distnace = distance
+        if distance < lowest_distance:
+            lowest_distance = distance
             closest_domain = row[1]
+
 
     #Close connection and return distance and closest domain.
     connection.close()
-    return closest_domain, lowest_distnace
+
+    #Classify distnace
+    if lowest_distance == 0:
+        return (closest_domain, lowest_distance, "Exact match to known domain", -20)
+    elif lowest_distance <= 2:
+        return (closest_domain, lowest_distance, "Likely Impersonation", 40)
+    elif lowest_distance <= 4:
+        return (closest_domain, lowest_distance, "Possible Impersonation", 25)
+    elif lowest_distance <= 6:
+        return (closest_domain, lowest_distance, "Slightly Suspicious", 10)
+    else:
+        return (closest_domain, lowest_distance, "Unlikely Impersonation", 0)
+    
             
+def protocol_analysis(protocol):
+    
+    #Analyse the URL protocol for phishing indicators.
+    #HTTPS is secure, HTTP is suspicious for sensitive pages.
+    #Return tuple (protocol_info, score)
+    
+    if protocol.lower() == "https":
+        return ("HTTPS (Secure)", 0)
+    elif protocol.lower() == "http":
+        return ("HTTP (Not Encrypted)", 20)
+    elif protocol == "":
+        return ("No Protocol", 15)
+    else:
+        return (f"{protocol} (Unknown)", 15)
+
 def analyse_subdomain_path(subdomain, path):
      
     
@@ -188,4 +218,3 @@ def analyse_subdomain_path(subdomain, path):
     #Close connection and return detected elements
     connection.close()
     return detected_subdomains, detected_chars, detected_words_path, total_score
-             

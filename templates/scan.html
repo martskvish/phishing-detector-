@@ -35,7 +35,9 @@
 
         <h2>Domain Distance</h2>
         <p><strong>Closest Domain:</strong> {{ domain_distance[0] }}</p>
-        <p><strong>Distance Score:</strong> {{ domain_distance[1] }}</p>
+        <p><strong>Distance:</strong> {{ domain_distance[1] }}</p>
+        <p><strong>Clasification:</strong> {{ domain_distance[2] }}</p>
+        <p><strong>Score:</strong> {{ domain_distance[3] }}</p>
         <br>
 
         <h2>URL analysis</h2>
@@ -43,6 +45,10 @@
         <p><strong>suspicious charsacters in path</strong> {{ path_subdomain_analysis[1] }}</p>
         <p><strong>suspicious charsacters in path</strong> {{ path_subdomain_analysis[2] }}</p>
         <p><strong>URL suspicious score</strong> {{ path_subdomain_analysis[3] }}</p>
+
+        <h2>Protocol analysis</h2>
+        <p><strong>protocol</strong> {{ protocol[0] }}</p>
+        <p><strong>score</strong> {{ protocol[1] }}</p>
 
         <h2>Total Score</h2>
         <p><strong>{{ total_score }}</strong></p>

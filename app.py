@@ -10,7 +10,7 @@ import datetime
 
 #Import funtions from extractor files
 from HTML_extraction_analysis import extraxt_html_content, extract_text_from_html, HTMLtext_analysis, SQL_HTML_database_extraction, HTML_tag_analyser
-from URL_extraction_analysis import decompose_url, levenshteins_distance_domain, analyse_subdomain_path
+from URL_extraction_analysis import decompose_url, levenshteins_distance_domain, analyse_subdomain_path, protocol_analysis
 
 
 #Initalizes a flask applicatio and assigns it to the variable app. 
@@ -51,11 +51,13 @@ def login_verify():
         if check_password_hash(user[3], password):
             session["user_id"] = user[0]
             session["username"] = user[1]
+            session["emial"] = user[2]
             return redirect("/home")
         else:
             return redirect("/")
 
 #Define route for logout
+#When triggered clears session
 @app.route("/logout")
 def logout():
     session.clear()
@@ -132,13 +134,13 @@ def scan():
     unfiltered_HTML = extraxt_html_content(url)
     HTML_text_content = extract_text_from_html(unfiltered_HTML)
     HTML_sus_score, HTML_sus_keywords = HTMLtext_analysis(HTML_text_content, SQL_HTML_database_extraction())
-    HTML_DETECTED_TAGS = HTML_tag_analyser(unfiltered_HTML, decompose_urld['domain'])
-    Domain_distance = levenshteins_distance_domain(decompose_urld['domain'])
-    URL_path_subdomain_analysis = analyse_subdomain_path(decompose_urld['subdomains'],decompose_urld['path'])
+    HTML_DETECTED_TAGS = HTML_tag_analyser(unfiltered_HTML, decompose_urld["domain"])
+    Domain_distance = levenshteins_distance_domain(decompose_urld["domain"])
+    URL_path_subdomain_analysis = analyse_subdomain_path(decompose_urld["subdomains"],decompose_urld['path'])
+    protocol_score = protocol_analysis(decompose_urld["protocol"])
 
     #calculate overall score.
-    total_score = HTML_sus_score + HTML_DETECTED_TAGS[0] + Domain_distance[1] + URL_path_subdomain_analysis[3]
-
+    total_score = HTML_sus_score + HTML_DETECTED_TAGS[0] + Domain_distance[1] + URL_path_subdomain_analysis[3] + protocol_score[1] + Domain_distance[3]
     #initailize connection.
     Connection = sqlite3.connect("DB/users.db")
     cursor = Connection.cursor()
@@ -157,9 +159,8 @@ def scan():
 
     #Renders the scan.html template and passes the decomposed URL, visible text, distance of domain, suspicious words and characters as variables.
     return render_template("scan.html", url=decompose_urld, visible_text=HTML_text_content, HTMLtext_analysis_score=HTML_sus_score, suswords=HTML_sus_keywords,
-                           detected_tags=HTML_DETECTED_TAGS, domain_distance = Domain_distance, path_subdomain_analysis = URL_path_subdomain_analysis, total_score=total_score)
-
-
+                           detected_tags=HTML_DETECTED_TAGS, domain_distance = Domain_distance, path_subdomain_analysis = URL_path_subdomain_analysis, total_score=total_score,
+                           protocol=protocol_score)
 
 @app.route("/history",  methods=["GET"])
 def scan_history():
