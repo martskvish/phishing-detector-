@@ -18,13 +18,11 @@
         <p><strong>Path:</strong> {{ url.path }}</p>
         <p><strong>Query:</strong> {{ url.query }}</p>
         
-
         <details>
             <summary>Visible Text</summary>
             <p>{{ visible_text }}</p>
         </details>
     
-
         <h2>Suspicious Words and Score</h2>
         <p>{{ suswords }}</p>
         <p>{{ HTMLtext_analysis_score }}</p>
@@ -45,6 +43,10 @@
         <p><strong>suspicious charsacters in path or query</strong> {{ path_subdomain_analysis[1] }}</p>
         <p><strong>suspicious charsacters in path or query</strong> {{ path_subdomain_analysis[2] }}</p>
         <p><strong>URL suspicious score</strong> {{ path_subdomain_analysis[3] }}</p>
+
+        <h2>Whois lookup</h2>
+        <p><strong>Detected factors</strong> {{ whois_reassons_score[1] }}</p>
+        <p><strong>score</strong> {{ whois_reassons_score[0] }}</p>
 
         <h2>Protocol analysis</h2>
         <p><strong>protocol</strong> {{ protocol[0] }}</p>

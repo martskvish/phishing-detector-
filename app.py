@@ -11,7 +11,7 @@ import datetime
 #Import funtions from extractor files
 from HTML_extraction_analysis import extraxt_html_content, extract_text_from_html, HTMLtext_analysis, SQL_HTML_database_extraction, HTML_tag_analyser
 from URL_extraction_analysis import decompose_url, levenshteins_distance_domain, analyse_subdomain_path, protocol_analysis
-
+from EXTRA_factor_detectors import WHOIS_lookup
 
 #Initalizes a flask applicatio and assigns it to the variable app. 
 app = Flask(__name__)
@@ -137,17 +137,18 @@ def scan():
     Domain_distance = levenshteins_distance_domain(decompose_urld["domain"])
     URL_path_subdomain_analysis = analyse_subdomain_path(decompose_urld["subdomains"],decompose_urld["path"],decompose_urld["query"])
     protocol_score = protocol_analysis(decompose_urld["protocol"])
+    WHOIS = WHOIS_lookup(decompose_urld["domain"])
 
     #calculate overall score.
-    total_score = HTML_sus_score + HTML_DETECTED_TAGS[0] + Domain_distance[1] + URL_path_subdomain_analysis[3] + protocol_score[1] + Domain_distance[3]
+    total_score = HTML_sus_score + HTML_DETECTED_TAGS[0] + Domain_distance[1] + URL_path_subdomain_analysis[3] + protocol_score[1] + Domain_distance[3] + WHOIS[0]
     
     #Compare score to thresholds and classify website
     overall_classification = ""
     if total_score <= 0:
         overall_classification = "Safe"
-    elif total_score <= 25:
+    elif total_score <= 30:
         overall_classification = "Low Risk"
-    elif total_score <= 50:
+    elif total_score <= 60:
         overall_classification = "Suspicious"
     elif total_score <= 90:
         overall_classification = "Likely Phishing"
@@ -173,7 +174,7 @@ def scan():
     #Renders the scan.html template and passes the decomposed URL, visible text, distance of domain, suspicious words and characters as variables.
     return render_template("scan.html", url=decompose_urld, visible_text=HTML_text_content, HTMLtext_analysis_score=HTML_sus_score, suswords=HTML_sus_keywords,
                            detected_tags=HTML_DETECTED_TAGS, domain_distance = Domain_distance, path_subdomain_analysis = URL_path_subdomain_analysis, total_score=total_score,
-                           protocol=protocol_score, web_classification = overall_classification)
+                           protocol=protocol_score, web_classification = overall_classification, whois_reassons_score = WHOIS)
 
 @app.route("/history",  methods=["GET"])
 def scan_history():

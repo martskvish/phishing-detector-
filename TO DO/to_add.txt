@@ -4,7 +4,7 @@ MAIN: explanations of detected factors
 
 
 
-
+IP/private address check
 Export scan results — download as PDF or CSV
 Threat level classification — convert the raw score into Low/Medium/High/Critical with colour coding rather than just a number
 WHOIS lookup — check domain age (newly registered domains are a major phishing indicator)
