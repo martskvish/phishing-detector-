@@ -133,33 +133,50 @@ def levenshteins_distance_domain(domain):
     #Close connection and return distance and closest domain.
     connection.close()
 
-    #Classify distnace
+    # Classify distance
     if lowest_distance == 0:
-        return (closest_domain, lowest_distance, "Exact match to known domain", -20)
+        reason = "Exact match to known domain"
+        score = -20
     elif lowest_distance <= 2:
-        return (closest_domain, lowest_distance, "Likely Impersonation", 40)
+        reason = "Likely Impersonation"
+        score = 40
     elif lowest_distance <= 4:
-        return (closest_domain, lowest_distance, "Possible Impersonation", 25)
+        reason = "Possible Impersonation"
+        score = 25
     elif lowest_distance <= 6:
-        return (closest_domain, lowest_distance, "Slightly Suspicious", 10)
+        reason = "Slightly Suspicious"
+        score = 10
     else:
-        return (closest_domain, lowest_distance, "Unlikely Impersonation", 0)
-    
+        reason = "Unlikely Impersonation"
+        score = 0
+
+    return closest_domain, lowest_distance, reason, score
             
 def protocol_analysis(protocol):
     
     #Analyse the URL protocol for phishing indicators.
-    #HTTPS is secure, HTTP is suspicious for sensitive pages.
-    #Return tuple (protocol_info, score)
+    #HTTPS is secure, HTTP is suspicious when used by webiste.
+    #Return protocol_info, score
     
+    #Initialize empty variables
+    reasson = "" 
+    score = 0 
+
+    #Define reasson and score
     if protocol.lower() == "https":
-        return ("HTTPS (Secure)", -20)
+        reasson = "HTTPS (Secure)"
+        score = -20
     elif protocol.lower() == "http":
-        return ("HTTP (Not Encrypted)", 20)
+        reasson = "HTTP (Not Encrypted)"
+        score = 20
     elif protocol == "":
-        return ("No Protocol", 10)
+        reasson = "No Protocol"
+        score = 10
     else:
-        return ( "Unknown protocol", 15)
+        reasson = "Unknown protocol"
+        score = 15
+    
+    return reasson, score
 
 def analyse_subdomain_path(subdomain, path, query):
      

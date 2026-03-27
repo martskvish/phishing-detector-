@@ -38,7 +38,7 @@ def login_verify():
     Connection = sqlite3.connect("DB/users.db")
     cursor = Connection.cursor() 
 
-    #This SQL command checks if there is a user in the USERS table with the provided email and password.
+    #This SQL command checks if there is a user in the USERS table with the provided email and gets all columns.
     user = cursor.execute("SELECT * FROM USERS WHERE email = ?", (email,)).fetchone()
     Connection.close()
 
@@ -154,6 +154,8 @@ def scan():
         overall_classification = "Likely Phishing"
     else:
         overall_classification = "Phishing"
+    
+    colour_map = {"Safe": "#22c55e", "Low Risk": "#84cc16","Suspicious": "#f59e0b", "Likely Phishing": "#f97316", "Phishing": "#ef4444"}
 
     #initailize connection.
     Connection = sqlite3.connect("DB/users.db")
