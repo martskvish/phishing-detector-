@@ -84,12 +84,25 @@ def WHOIS_lookup(domain):
             score = score - 5
             reasons.append(f"Last updated {days_from_last_update} days ago (-5)")
 
+        #Statistics from https://docs.apwg.org/reports/apwg_trends_report_q3_2024.pdf
+        SUSPICIOUS_REGISTRARS = {
+        "namecheap, inc.",  #23.8% of BEC domains — largest after Squarespace
+        "hostinger, uab",  #11.7% of BEC domains
+        "godaddy.com, llc",  #4.5% of BEC domains
+        "namesilo, llc", #2.2% of BEC domains
+        "pdr ltd.", #2.2% of BEC domains
+        "enom, llc",} #2.2% of BEC domains
         
-        return score, reasons
+        #Suspicious registrars analysis
+        if registrar.lower () in SUSPICIOUS_REGISTRARS:
+            score = score + 10
+            reasons.append(f"Suspicious registrar: {registrar} (+10)")
+        else:
+            score = score + 5
+            reasons.append("Registrar unknown (+5)")
         
+        return score, reasons, Name_Servers, registrar
         
-        #ADD REGISTRAR ANALYSIS
-
     #Catch any errors when whois.whois(domain) fails
     except Exception as e:
         print(f"Error: {e}")
