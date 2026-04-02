@@ -1,6 +1,5 @@
 #bs4 (BeautifulSoup) is a Python library used for web scraping and parsing HTML and XML documents. 
 #requests is a Python library used for making HTTP requests.
-
 import sqlite3
 from bs4 import BeautifulSoup
 import requests
@@ -91,6 +90,7 @@ def HTML_tag_analyser(HTML_raw, full_domain):
     domain = parts[-2]
     
     #Convert the raw HTML string into a structured, searchable tree object which is stored in filtered.
+    #Explain how parsing works. 
     filtered = BeautifulSoup(HTML_raw.text, 'html.parser')
 
     #Initialise score and matched_tags variable

@@ -9,6 +9,7 @@ def WHOIS_lookup(domain):
         #Get creation day of the domain from domaininfo.
         #Check if the creation is a list, sometimes creation_date returns a list with two elements.
         #Use datetime to get the difference of days from now to when the domain was created.
+        #If creation hase no value, set domain_age to None to handle it later in the code.
         #Newly registered = suspicious
         creation = domaininfo.creation_date
         if isinstance(creation, list):
@@ -18,6 +19,7 @@ def WHOIS_lookup(domain):
         #Get the expiration day of the domain.
         #Check if the returned datatype is a list.
         #Find the difference between the expiration and creation dates in days.
+        #If there is no expiration date or creation date, set registrated_for to None.
         #Only 1 year = suspicious.
         Expiration = domaininfo.expiration_date
         if isinstance(Expiration, list):
@@ -32,10 +34,11 @@ def WHOIS_lookup(domain):
 
         #Get when the domain was last updated.
         #Check if the returned datatype is a list.
+        #If Updtated has no value, set days_from_last_update to None.
         #Recent changes = suspicious.
         Updated = domaininfo.updated_date
         if isinstance(Updated, list):
-            Updated = Updated[0]  # reassign back to the same variable
+            Updated = Updated[0]  #Reassign back to the same variable
         days_from_last_update = (datetime.now(timezone.utc) - Updated).days if Updated else None
 
         #Initilaize a score and reassons variables
@@ -108,9 +111,8 @@ def WHOIS_lookup(domain):
         print(f"Error: {e}")
         
         #Return empty values to keep other parts of program from crashing
-        return 0, []
+        return 0, [], "", ""
     
-
 def SSL_certificate_analysis(domain):
 
     

@@ -11,7 +11,7 @@ import datetime
 #Import funtions from extractor files
 from HTML_extraction_analysis import extraxt_html_content, extract_text_from_html, HTMLtext_analysis, SQL_HTML_database_extraction, HTML_tag_analyser
 from URL_extraction_analysis import decompose_url, levenshteins_distance_domain, analyse_subdomain_path, protocol_analysis
-from EXTRA_factor_detectors import WHOIS_lookup
+from EXTRA_factor_detectors import WHOIS_lookup, SSL_certificate_analysis
 
 #Initalizes a flask applicatio and assigns it to the variable app. 
 app = Flask(__name__)
@@ -43,14 +43,14 @@ def login_verify():
     Connection.close()
 
     #If no user is found with the provided credentials, redirect to the login page.
-    #If a user is found, redirect to the home page, while storing user_id and username safely on server's side.
+    #If a user is found, redirect to the home page, while storing user_id, username and email safely on server's side.
     if user == None:
         return redirect("/")
     else:
         if check_password_hash(user[3], password):
             session["user_id"] = user[0]
             session["username"] = user[1]
-            session["emial"] = user[2]
+            session["email"] = user[2]
             return redirect("/home")
         else:
             return redirect("/")
@@ -64,7 +64,8 @@ def logout():
 
 #This defines a route for the /home URL. 
 #When user visits the /home URL, home function is called.
-#request.args.get() Retrieves username and email from the query parameters in the URL.
+#If user is not logged in, they are redirected to the login page.
+#If user is logegd in, the home.html template is rendered and the username is passed as a variable to the template.
 @app.route("/home")
 def home():
 
@@ -140,7 +141,7 @@ def scan():
     WHOIS = WHOIS_lookup(decompose_urld["domain"])
 
     #calculate overall score.
-    total_score = HTML_sus_score + HTML_DETECTED_TAGS[0] + Domain_distance[1] + URL_path_subdomain_analysis[3] + protocol_score[1] + Domain_distance[3] + WHOIS[0]
+    total_score = HTML_sus_score + HTML_DETECTED_TAGS[0] + URL_path_subdomain_analysis[3] + protocol_score[1] + Domain_distance[3] + WHOIS[0]
     
     #Compare score to thresholds and classify website
     overall_classification = ""

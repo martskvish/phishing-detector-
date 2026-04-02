@@ -134,21 +134,22 @@ def levenshteins_distance_domain(domain):
     connection.close()
 
     # Classify distance
+    score = 0
     if lowest_distance == 0:
         reason = "Exact match to known domain"
-        score = -20
+        score = score - 20
     elif lowest_distance <= 2:
         reason = "Likely Impersonation"
-        score = 40
+        score = score + 40
     elif lowest_distance <= 4:
         reason = "Possible Impersonation"
-        score = 25
+        score = score + 25
     elif lowest_distance <= 6:
         reason = "Slightly Suspicious"
-        score = 10
+        score = score + 10
     else:
         reason = "Unlikely Impersonation"
-        score = 0
+        score = score + 0
 
     return closest_domain, lowest_distance, reason, score
             
@@ -180,7 +181,6 @@ def protocol_analysis(protocol):
 
 def analyse_subdomain_path(subdomain, path, query):
      
-    
     #Connect to a SQLite database names sus_keyword.db and use cursor objects to interact with each table.
     connection = sqlite3.connect("DB/sus_keywords.db")
     cursor = connection.cursor()
@@ -230,7 +230,7 @@ def analyse_subdomain_path(subdomain, path, query):
 
         if word in path.lower():
             total_score = total_score + weight
-            detected_words_path.append((char, severity, weight))
+            detected_words_path.append((word, severity, weight))
 
     #Close connection and return detected elements
     connection.close()
