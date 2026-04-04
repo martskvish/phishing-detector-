@@ -1,23 +1,33 @@
 #Import falasd and its functions for web development.
 #sqlite3 for database interaction.
 #werkzeug.security for password hashing and verification.
-#datatime for stroing history of scans.
+#datatime for storing history of scans.
+
+import email
 
 from flask import Flask, render_template, request, redirect, session
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
 import datetime
+from dotenv import load_dotenv
+import os
+
+#Load enviromantal variables form .env file.
+load_dotenv("creds.env")
+
 
 #Import funtions from extractor files
 from HTML_extraction_analysis import extraxt_html_content, extract_text_from_html, HTMLtext_analysis, SQL_HTML_database_extraction, HTML_tag_analyser
 from URL_extraction_analysis import decompose_url, levenshteins_distance_domain, analyse_subdomain_path, protocol_analysis
 from EXTRA_factor_detectors import WHOIS_lookup, SSL_certificate_analysis
+from auth import gen_otp, send_otp
 
 #Initalizes a flask applicatio and assigns it to the variable app. 
 app = Flask(__name__)
 
-#Used to sign/encrypt the session cookie stored in the user's browser so it can't be tampered with
-app.secret_key = "3d6f45a5fc12445dbac2f59c3b1c97364"
+#Used to sign/encrypt the session cookie stored in the user's browser so it can't be tampered with.
+#Generates a random 32 byte hexadecimal string, making program more secure and less vulnerable to session hijacking.
+app.secret_key = os.getenv("SECRET_KEY")
 
 #Define route for the root URL "/" and associates it with the login function.
 #When a user visits the root URL, login function is called and  "login.html" template is rendered whcih is sent back to the user's browser.
@@ -99,23 +109,52 @@ def add_user():
 
     #Checks if user with provided email already exists.
     ans = cursor.execute("SELECT * FROM USERS WHERE email = ?", (email,)).fetchone()
+    Connection.close()
     
     #If user with provided email and password already exists, close the database connection and render the signup page with an error message.
     if ans is not None:
         return render_template("signup.html", error="Email already exists")
     
-    #Generate password hash to protect real password 
-    password_hash = generate_password_hash(password)
-    
-    #If user does not exist, insert new user into the USERS table with the provided username, email, and password.
-    cursor.execute("INSERT INTO USERS (username, email, password) VALUES (?, ?, ?)", (username, email, password_hash))
-    
-    
-    Connection.commit()
-    Connection.close()
+    #Generate password hash to protect real password.
+    session["password_hash"] = generate_password_hash(password)
+    session["username"] = username
+    session["email"] = email
+
+
+    session["otp"] = gen_otp()
+    session["otp_exp"] = (datetime.datetime.now() + datetime.timedelta(minutes=3)).isoformat()
+
+    send_otp(email, session["otp"])
 
     #Redirect to the login page after successful registration.
-    return redirect("/")
+    return redirect("verify_user")
+
+@app.route("/verify_user", methods=["GET", "POST"])
+def verify_user():
+
+    if "otp" not in session:
+        return redirect("/signup")
+    
+    if request.method == "POST":
+
+        if datetime.datetime.now() > datetime.datetime.fromisoformat(session["otp_exp"]):
+            return render_template("auth.html", error="One Time Password has expired. Try again")
+        
+        if session["otp"] == int(request.form.get("otp")):
+            connect = sqlite3.connect("DB/users.db")
+            cursor = connect.cursor()
+
+            cursor.execute("INSERT INTO USERS (username, email, password) VALUES (?, ?, ?)", (session["username"], session["email"], session["password_hash"]))
+
+            connect.commit()
+            connect.close()
+        
+            return redirect("/")
+        
+        return render_template("auth.html", error = "Incorrect One Time passcode. Try again")
+    
+    return render_template("auth.html")
+        
 
 #Defines a route for the /scan URL that accepts POST requests.
 @app.route("/scan", methods=["POST"])
@@ -129,7 +168,8 @@ def scan():
     time = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
     url = request.form.get('url')
 
-    #Decompose the URL, extract HTML content, extract visible text from the HTML and analyze the text for suspicious words.
+    #Decompose the URL, extract HTML content, extract visible text from the HTML and analyze the text for suspicious words and analyse HTML tags.
+    #Analyse URL's domain, subdomain with levenshtein distance, path and query for suspicious elements, and check protocol.
     decompose_urld = decompose_url(url)
     unfiltered_HTML = extraxt_html_content(url)
     HTML_text_content = extract_text_from_html(unfiltered_HTML)
@@ -158,7 +198,7 @@ def scan():
     
     colour_map = {"Safe": "#22c55e", "Low Risk": "#84cc16","Suspicious": "#f59e0b", "Likely Phishing": "#f97316", "Phishing": "#ef4444"}
 
-    #initailize connection.
+    #Initailize connection.
     Connection = sqlite3.connect("DB/users.db")
     cursor = Connection.cursor()
 

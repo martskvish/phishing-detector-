@@ -11,7 +11,7 @@ cursor = connection.cursor()
 #Command tells the database to create a table called USERS. Table will have three columns: id, username, email, password and historyID.
 #Id column is set as the primary key, which means it must be unique for each user. 
 #Password column is also set to not allow null values.
-cmd1 = """CREATE TABLE IF NOT EXISTS USERS (id INTEGER PRIMARY KEY AUTOINCREMENT, username, email, password varchar(50) NOT NULL, historyID)"""
+cmd1 = """CREATE TABLE IF NOT EXISTS USERS (id INTEGER PRIMARY KEY AUTOINCREMENT, username, email, password varchar(50) NOT NULL)"""
 
 #Sends the SQL command to SQLite.
 cursor.execute(cmd1)
