@@ -2,8 +2,9 @@
 #sqlite3 for database interaction.
 #werkzeug.security for password hashing and verification.
 #datatime for storing history of scans.
+#dotenv for loading environment variables from a .env file.
+#os for interacting with files and environment variables on the operating system.
 
-import email
 
 from flask import Flask, render_template, request, redirect, session
 import sqlite3
@@ -12,15 +13,14 @@ import datetime
 from dotenv import load_dotenv
 import os
 
-#Load enviromantal variables form .env file.
-load_dotenv("creds.env")
-
-
 #Import funtions from extractor files
 from HTML_extraction_analysis import extraxt_html_content, extract_text_from_html, HTMLtext_analysis, SQL_HTML_database_extraction, HTML_tag_analyser
 from URL_extraction_analysis import decompose_url, levenshteins_distance_domain, analyse_subdomain_path, protocol_analysis
 from EXTRA_factor_detectors import WHOIS_lookup, SSL_certificate_analysis
 from auth import gen_otp, send_otp
+
+#Load enviromantal variables form .env file.
+load_dotenv("creds.env")
 
 #Initalizes a flask applicatio and assigns it to the variable app. 
 app = Flask(__name__)
@@ -117,13 +117,16 @@ def add_user():
     
     #Generate password hash to protect real password.
     session["password_hash"] = generate_password_hash(password)
+
+    #Store username and email in session.
     session["username"] = username
     session["email"] = email
 
-
+    #Generate a one time password and expiration time for th OTP with 3 minute duration starting form the moment of generation in ISO format for easy comparison later on.
     session["otp"] = gen_otp()
     session["otp_exp"] = (datetime.datetime.now() + datetime.timedelta(minutes=3)).isoformat()
 
+    #Use the send_otp function to send the generated OTP to the user's email address.
     send_otp(email, session["otp"])
 
     #Redirect to the login page after successful registration.
@@ -132,11 +135,16 @@ def add_user():
 @app.route("/verify_user", methods=["GET", "POST"])
 def verify_user():
 
+    #If there is no OTP in the session, registartion has not been completed, return user to signup_page.
     if "otp" not in session:
         return redirect("/signup")
     
+    #Else if there is an OTP in the session and user submits the form, check if OTP is correct and not expired.
+    #If OTP is expired, render the auth.tml with error message.
+    #If OTP is correct, add user to database and redirect to home page.
     if request.method == "POST":
 
+        #Compare current time with OTP expirtion time stored in session using ISO format for easy comparison.
         if datetime.datetime.now() > datetime.datetime.fromisoformat(session["otp_exp"]):
             return render_template("auth.html", error="One Time Password has expired. Try again")
         
@@ -144,8 +152,10 @@ def verify_user():
             connect = sqlite3.connect("DB/users.db")
             cursor = connect.cursor()
 
+            #Insert user detail into USERS table.
             cursor.execute("INSERT INTO USERS (username, email, password) VALUES (?, ?, ?)", (session["username"], session["email"], session["password_hash"]))
 
+            #Commit and close connection to database.
             connect.commit()
             connect.close()
         
