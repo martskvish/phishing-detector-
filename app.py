@@ -124,6 +124,10 @@ def add_user():
 
     #Generate a one time password and expiration time for th OTP with 3 minute duration starting form the moment of generation in ISO format for easy comparison later on.
     session["otp"] = gen_otp()
+
+    #Print OTP temproraly for easier user creation.
+    print(f"current users's OTP {session["otp"]}")
+
     session["otp_exp"] = (datetime.datetime.now() + datetime.timedelta(minutes=3)).isoformat()
 
     #Use the send_otp function to send the generated OTP to the user's email address.
@@ -189,10 +193,11 @@ def scan():
     URL_path_subdomain_analysis = analyse_subdomain_path(decompose_urld["subdomains"],decompose_urld["path"],decompose_urld["query"])
     protocol_score = protocol_analysis(decompose_urld["protocol"])
     WHOIS = WHOIS_lookup(decompose_urld["domain"])
+    SSL_certificate = SSL_certificate_analysis(url)
 
     #calculate overall score.
-    total_score = HTML_sus_score + HTML_DETECTED_TAGS[0] + URL_path_subdomain_analysis[3] + protocol_score[1] + Domain_distance[3] + WHOIS[0]
-    
+    total_score = HTML_sus_score + HTML_DETECTED_TAGS[0] + URL_path_subdomain_analysis[3] + protocol_score[1] + Domain_distance[3] + WHOIS[0] + SSL_certificate[0]
+
     #Compare score to thresholds and classify website
     overall_classification = ""
     if total_score <= 0:
@@ -227,7 +232,7 @@ def scan():
     #Renders the scan.html template and passes the decomposed URL, visible text, distance of domain, suspicious words and characters as variables.
     return render_template("scan.html", url=decompose_urld, visible_text=HTML_text_content, HTMLtext_analysis_score=HTML_sus_score, suswords=HTML_sus_keywords,
                            detected_tags=HTML_DETECTED_TAGS, domain_distance = Domain_distance, path_subdomain_analysis = URL_path_subdomain_analysis, total_score=total_score,
-                           protocol=protocol_score, web_classification = overall_classification, whois_reassons_score = WHOIS)
+                           protocol=protocol_score, web_classification = overall_classification, whois_reassons_score = WHOIS, SSL_reassons_score = SSL_certificate)
 
 @app.route("/history",  methods=["GET"])
 def scan_history():

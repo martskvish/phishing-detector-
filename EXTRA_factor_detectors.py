@@ -1,5 +1,13 @@
+#whois library used to retrieve domain registration information (registration date, expiration date, registrar, name servers).
+#datetime and timezones are used verify and check registration and expiration dates of domain.
+#requests are used to retrive and send requests to websites 
+#requests.exceptions import specific errors types to detect specific errors after atempt to retrive SSL certificate.
+
+
 import whois
 from datetime import datetime, timezone
+import requests
+from requests.exceptions import SSLError, ConnectionError
 
 def WHOIS_lookup(domain):
     try:
@@ -85,7 +93,7 @@ def WHOIS_lookup(domain):
             reasons.append(f"Updated recently: {days_from_last_update} days ago (+10)")
         else: #Last updated more than 30 days ago
             score = score - 5
-            reasons.append(f"Last updated {days_from_last_update} days ago (-5)")
+            reasons.append(f"Last updated: {days_from_last_update} days ago (-5)")
 
         #Statistics from https://docs.apwg.org/reports/apwg_trends_report_q3_2024.pdf
         SUSPICIOUS_REGISTRARS = {
@@ -107,13 +115,30 @@ def WHOIS_lookup(domain):
         return score, reasons, Name_Servers, registrar
         
     #Catch any errors when whois.whois(domain) fails
-    except Exception as e:
-        print(f"Error: {e}")
+    except Exception as error:
+        print(f"Error: {error}")
         
         #Return empty values to keep other parts of program from crashing
         return 0, [], "", ""
     
-def SSL_certificate_analysis(domain):
+def SSL_certificate_analysis(url):
+    try:
 
+        #Send a request to the website, tries to establish a secure HTTPS connection.
+        #Timeout waits max for 7 seconds, to prevent program from freezing.
+        #If SSL is valid, connection succeeds, retunrs "valid ssl".
+        requests.get(url, timeout=7)
+        return -10, "Valid SSL certificate (-10)"
+    except SSLError:
+        
+        #When SSL error is detected, meaning that certificate is expired, self-signed or invalid making webiste suspicious.
+        return 20, "Invalid SSL certificate (+20)" 
+    except ConnectionError:
+
+        #When connection error is detected, can mean that webiste is down or there is no intenet or domain doesn't exist.
+        return 0, "Connection error, unable to verify SSL certificate (0)"
+    except Exception:
+
+        #Catch any other unexpected errors that may occur during the SSL certificate analysis. 
+        return 0, "Error checking SSL certificate (0)"
     
-    return
