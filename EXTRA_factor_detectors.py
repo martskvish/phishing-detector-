@@ -3,7 +3,6 @@
 #requests are used to retrive and send requests to websites 
 #requests.exceptions import specific errors types to detect specific errors after atempt to retrive SSL certificate.
 
-
 import whois
 from datetime import datetime, timezone
 import requests

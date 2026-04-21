@@ -83,7 +83,7 @@ def HTMLtext_analysis(HTML_text, keywords):
 
     return score, matched_keywords
 
-def HTML_tag_analyser(HTML_raw, full_domain):
+def HTML_tag_analyser(HTML_raw, full_domain): 
 
     #Only get SLD (second level domain) 
     parts = full_domain.split(".")
@@ -166,3 +166,63 @@ def HTML_tag_analyser(HTML_raw, full_domain):
         
 
     return score, matched_tags
+
+def HTML_code_jaccard(HTML_raw, simmilar):
+
+    #optimisation (only run heavy checks when needed)
+
+    jaccard_similarity = 0.0
+    reasson = ""
+
+    #Convert raw HTML code into structured, searchable tree.
+    filtered1 = BeautifulSoup(HTML_raw.text, 'html.parser')
+    filtered2 = BeautifulSoup(simmilar.text, 'html.parser')
+
+    #Remove script and style tags and their content from the parsed HTML. 
+    #These tags often contain code that is not visible to users but can be used for malicious purposes.
+    #Allows us to focuse on the vissible conent on web page.
+    for tag in filtered1(["script", "style"]):
+        tag.decompose()
+    for tag in filtered2(["script", "style"]):
+        tag.decompose()
+
+    #Extract the visible text from the both filtered HTML and convert it to lowercase for better comparison.
+    #Split the extracted text into individual words and set to set.
+    html_text = filtered1.get_text(separator=" ").lower()
+    words1 = set(html_text.split())
+
+    html_text2 = filtered2.get_text(separator=" ").lower()
+    words2 = set(html_text2.split())    
+
+    #Intersection of two sets
+    intersection = len(words1.intersection(words2))
+    #Unions of two sets
+    union = len(words1.union(words2))
+
+    #Calculate Jaccard similarity as the size of the intersection divided by the size of the union of the two sets of words.
+    #If the union is zero, it means both sets are empty and the similarity is defined as 0.0 to avoid division by zero error.
+    if union == 0:
+        jaccard_similarity = 0.0 
+    else:
+        jaccard_similarity = intersection / union 
+    
+    if jaccard_similarity > 0.8:
+        reasson = "Very high similarity to known site (possible clone)"
+        jaccard_similarity = 30
+    elif jaccard_similarity > 0.5:
+        reasson = "Moderate similarity detected"
+        jaccard_similarity = 15
+    elif jaccard_similarity > 0.2:
+        reasson = "Low similarity"
+        jaccard_similarity = 5
+    else:
+        reasson = "No significant similarity"
+        jaccard_similarity = 0
+
+    return jaccard_similarity, reasson
+    
+    
+   
+
+
+    

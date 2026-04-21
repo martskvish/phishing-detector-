@@ -1,4 +1,4 @@
-#smtplib is a built-in Python library for sending emails using the Simple Mail Transfer Protocol (SMTP).
+#smtplib is a built in Python library for sending emails using the Simple Mail Transfer Protocol (SMTP).
 #email.mime.text is a library for craeting email messages with text conetnt. (MIME stands for Multipurpose Internet Mail Extensions)
 #os for interacting with the operating system, such as accessing environment variables.
 #random for generating random numbers, which is used here to create a one-time password (OTP).

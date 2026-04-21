@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 import os
 
 #Import funtions from extractor files
-from HTML_extraction_analysis import extraxt_html_content, extract_text_from_html, HTMLtext_analysis, SQL_HTML_database_extraction, HTML_tag_analyser
+from HTML_extraction_analysis import extraxt_html_content, extract_text_from_html, HTMLtext_analysis, SQL_HTML_database_extraction, HTML_tag_analyser, HTML_code_jaccard
 from URL_extraction_analysis import decompose_url, levenshteins_distance_domain, analyse_subdomain_path, protocol_analysis
 from EXTRA_factor_detectors import WHOIS_lookup, SSL_certificate_analysis
 from auth import gen_otp, send_otp
@@ -198,20 +198,24 @@ def scan():
     #calculate overall score.
     total_score = HTML_sus_score + HTML_DETECTED_TAGS[0] + URL_path_subdomain_analysis[3] + protocol_score[1] + Domain_distance[3] + WHOIS[0] + SSL_certificate[0]
 
-    #Compare score to thresholds and classify website
+    #Compare score to thresholds and classify website.
     overall_classification = ""
     if total_score <= 0:
         overall_classification = "Safe"
+        colour = "#22c55e"
     elif total_score <= 30:
         overall_classification = "Low Risk"
+        colour = "#84cc16"
     elif total_score <= 60:
         overall_classification = "Suspicious"
+        colour = "#ebd218"
     elif total_score <= 90:
         overall_classification = "Likely Phishing"
+        colour = "#f97316"
     else:
         overall_classification = "Phishing"
-    
-    colour_map = {"Safe": "#22c55e", "Low Risk": "#84cc16","Suspicious": "#f59e0b", "Likely Phishing": "#f97316", "Phishing": "#ef4444"}
+        colour = "#ef4444"
+
 
     #Initailize connection.
     Connection = sqlite3.connect("DB/users.db")
@@ -223,6 +227,7 @@ def scan():
     cursor.execute("INSERT INTO history (URL, TIMEDATE, TOTALSCORE, CLASSIFICATION) VALUES (?, ?, ?, ?)", (url, time, total_score, overall_classification))
     scan_id = cursor.lastrowid
 
+    #Link scan ID with user ID in user_history_link table.
     cursor.execute("INSERT INTO user_history_link (user_id, history_id) VALUES (?, ?)", (session["user_id"], scan_id))
 
     #Commit and update database.
@@ -257,7 +262,7 @@ def scan_history():
     #Append every scan corresponding to extracted scan IDs
     scans = []
     for i in result:    
-        scan_data= cursor.execute("SELECT * FROM history WHERE id = ?", (i,)).fetchone()
+        scan_data = cursor.execute("SELECT * FROM history WHERE id = ?", (i,)).fetchone()
         scans.append(scan_data)
 
     #Renders /history.html and passes scans as list reversed to show newest scan first.
