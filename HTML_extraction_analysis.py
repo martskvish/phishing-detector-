@@ -167,6 +167,7 @@ def HTML_tag_analyser(HTML_raw, full_domain):
 
     return score, matched_tags
 
+'''
 def HTML_code_jaccard(HTML_raw, simmilar):
 
     #optimisation (only run heavy checks when needed)
@@ -220,7 +221,7 @@ def HTML_code_jaccard(HTML_raw, simmilar):
         jaccard_similarity = 0
 
     return jaccard_similarity, reasson
-    
+'''
     
    
 

@@ -4,17 +4,22 @@
 #datatime for storing history of scans.
 #dotenv for loading environment variables from a .env file.
 #os for interacting with files and environment variables on the operating system.
+#csv for ecporting scan history to a CSV file.
+#io module used to create file-like objects in memeory. no need to create a physical file on disk.
 
 
-from flask import Flask, render_template, request, redirect, session
+from flask import Flask, render_template, request, redirect, send_file, session, make_response
 import sqlite3
+from shapely import buffer
 from werkzeug.security import generate_password_hash, check_password_hash
 import datetime
 from dotenv import load_dotenv
 import os
+import csv
+import io
 
 #Import funtions from extractor files
-from HTML_extraction_analysis import extraxt_html_content, extract_text_from_html, HTMLtext_analysis, SQL_HTML_database_extraction, HTML_tag_analyser, HTML_code_jaccard
+from HTML_extraction_analysis import extraxt_html_content, extract_text_from_html, HTMLtext_analysis, SQL_HTML_database_extraction, HTML_tag_analyser
 from URL_extraction_analysis import decompose_url, levenshteins_distance_domain, analyse_subdomain_path, protocol_analysis
 from EXTRA_factor_detectors import WHOIS_lookup, SSL_certificate_analysis
 from auth import gen_otp, send_otp
@@ -221,7 +226,6 @@ def scan():
     Connection = sqlite3.connect("DB/users.db")
     cursor = Connection.cursor()
 
-
     #Insert scan data into history table.
     #Get the id of scan which was just automaticaly assigned to row.
     cursor.execute("INSERT INTO history (URL, TIMEDATE, TOTALSCORE, CLASSIFICATION) VALUES (?, ?, ?, ?)", (url, time, total_score, overall_classification))
@@ -246,7 +250,6 @@ def scan_history():
     if "user_id" not in session:
         return redirect("/")
     
-
     #Initaliaze connection to user database
     Connection = sqlite3.connect("DB/users.db")
     cursor = Connection.cursor()
@@ -267,6 +270,47 @@ def scan_history():
 
     #Renders /history.html and passes scans as list reversed to show newest scan first.
     return render_template("/history.html", scans_list= scans[::-1])
+
+@app.route("/export_history", methods=["GET"])
+def export_history():
+    
+    #Check if user is logged in.
+    if "user_id" not in session:
+        return redirect("/")
+    
+    #Connect to user database and fetch all scan IDs associated with the user.
+    Connection = sqlite3.connect("DB/users.db")
+    cursor = Connection.cursor()
+    history_ids = cursor.execute("SELECT history_id FROM user_history_link WHERE user_id = ?", (session["user_id"],)).fetchall()
+
+    #Turn outputed tuple from sql query to list.
+    #Fetch all scan data corresponding to user's scan IDs.
+    result = []
+    scans = []
+    for index in history_ids:
+        result.append(index[0])
+    for i in result:    
+        scan_data = cursor.execute("SELECT * FROM history WHERE id = ?", (i,)).fetchone()
+        scans.append(scan_data)
+
+    #close connection.
+    Connection.close()
+
+    #Creates an empty in-memory text file.
+    #write coresponding id,url,result,date to each row of the CSV file for each scan in scans list.
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["id", "url", "result", "date"])
+    writer.writerows(scans)
+
+    #Moves the buffer's cursor back to the start.
+    output.seek(0)
+    
+    #Read entire buffer as string and convert it to bytes.
+    #io.BtyesIO wraps those bytes in memory bytes buffer which send_file can work with.
+    #Define file type as text/csv, set it to be downloaded as an attachment and give it a name based on the user's username.
+    return send_file(io.BytesIO(output.getvalue().encode()),mimetype="text/csv",as_attachment=True,download_name=f"{session["username"]}_scan_history.csv")
+
 
 #Run the Flask application.
 #With debug mode on to get more info about errors/bugs.
