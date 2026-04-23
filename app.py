@@ -300,7 +300,7 @@ def export_history():
     #write coresponding id,url,result,date to each row of the CSV file for each scan in scans list.
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["id", "url", "result", "date"])
+    writer.writerow(["id", "url", "date", "total score", "classification"])
     writer.writerows(scans)
 
     #Moves the buffer's cursor back to the start.
