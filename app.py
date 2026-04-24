@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 import os
 import csv
 import io
-import fpdf
+from fpdf import FPDF
 
 #Import funtions from extractor files
 from HTML_extraction_analysis import extraxt_html_content, extract_text_from_html, HTMLtext_analysis, SQL_HTML_database_extraction, HTML_tag_analyser
@@ -192,61 +192,96 @@ def scan():
     time = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
     url = request.form.get('url')
 
-    #Decompose the URL, extract HTML content, extract visible text from the HTML and analyze the text for suspicious words and analyse HTML tags.
-    #Analyse URL's domain, subdomain with levenshtein distance, path and query for suspicious elements, and check protocol.
-    
-    decompose_urld = decompose_url(url)
-    unfiltered_HTML = extraxt_html_content(url)
-    HTML_text_content = extract_text_from_html(unfiltered_HTML)
-    HTML_sus_score, HTML_sus_keywords = HTMLtext_analysis(HTML_text_content, SQL_HTML_database_extraction())
-    HTML_DETECTED_TAGS = HTML_tag_analyser(unfiltered_HTML, decompose_urld["domain"])
-    Domain_distance = levenshteins_distance_domain(decompose_urld["domain"])
-    URL_path_subdomain_analysis = analyse_subdomain_path(decompose_urld["subdomains"],decompose_urld["path"],decompose_urld["query"])
-    protocol_score = protocol_analysis(decompose_urld["protocol"])
-    WHOIS = WHOIS_lookup(decompose_urld["domain"])
-    SSL_certificate = SSL_certificate_analysis(url)
+    #Check if URL has already been scanned.
+    exist = cursor.execute("SELECT id, TIMEDATE FROM history WHERE URL = ?", (url,)).fetchone()
+    exist_url = False
 
-    #calculate overall score.
-    total_score = HTML_sus_score + HTML_DETECTED_TAGS[0] + URL_path_subdomain_analysis[3] + protocol_score[1] + Domain_distance[3] + WHOIS[0] + SSL_certificate[0]
 
-    #Compare score to thresholds and classify website.
-    overall_classification = ""
-    if total_score <= 0:
-        overall_classification = "Safe"
-        colour = "#22c55e"
-    elif total_score <= 30:
-        overall_classification = "Low Risk"
-        colour = "#84cc16"
-    elif total_score <= 60:
-        overall_classification = "Suspicious"
-        colour = "#ebd218"
-    elif total_score <= 90:
-        overall_classification = "Likely Phishing"
-        colour = "#f97316"
+    if exist:
+        scan_time = datetime.datetime.strptime(exist[1], "%d-%m-%Y %H:%M:%S")
+        if (datetime.datetime.now() - scan_time).days < 3:
+            exist_url = True
+        else:
+            exist_url = False
+        
+    if not exist_url:
+
+        #Decompose the URL, extract HTML content, extract visible text from the HTML and analyze the text for suspicious words and analyse HTML tags.
+        #Analyse URL's domain, subdomain with levenshtein distance, path and query for suspicious elements, and check protocol.
+        decompose_urld = decompose_url(url)
+        unfiltered_HTML = extraxt_html_content(url)
+        HTML_text_content = extract_text_from_html(unfiltered_HTML)
+        HTML_sus_score, HTML_sus_keywords = HTMLtext_analysis(HTML_text_content, SQL_HTML_database_extraction())
+        HTML_DETECTED_TAGS = HTML_tag_analyser(unfiltered_HTML, decompose_urld["domain"])
+        Domain_distance = levenshteins_distance_domain(decompose_urld["domain"])
+        URL_path_subdomain_analysis = analyse_subdomain_path(decompose_urld["subdomains"],decompose_urld["path"],decompose_urld["query"])
+        protocol_score = protocol_analysis(decompose_urld["protocol"])
+        WHOIS = WHOIS_lookup(decompose_urld["domain"])
+        SSL_certificate = SSL_certificate_analysis(url)
+
+        #calculate overall score.
+        total_score = HTML_sus_score + HTML_DETECTED_TAGS[0] + URL_path_subdomain_analysis[3] + protocol_score[1] + Domain_distance[3] + WHOIS[0] + SSL_certificate[0]
+
+        #Compare score to thresholds and classify website.
+        overall_classification = ""
+        if total_score <= 0:
+            overall_classification = "Safe"
+            colour = "#22c55e"
+        elif total_score <= 30:
+            overall_classification = "Low Risk"
+            colour = "#84cc16"
+        elif total_score <= 60:
+            overall_classification = "Suspicious"
+            colour = "#ebd218"
+        elif total_score <= 90:
+            overall_classification = "Likely Phishing"
+            colour = "#f97316"
+        else:
+            overall_classification = "Phishing"
+            colour = "#ef4444"
+
+
+        #Insert scan data into history table.
+        #Get the id of scan which was just automaticaly assigned to row. 
+        #", ".join(str(t) for t in HTML_DETECTED_TAGS[1]) is used to convert list of detected HTML tags into a comma saparated stirng. Same applies to other list variables. 
+        cursor.execute("""INSERT INTO history (URL, TIMEDATE, TOTALSCORE, CLASSIFICATION, html_text_score, html_text_keywords,
+                        html_tag_score, html_detected_tags, domain_closest, domain_distance, domain_reason, domain_score,
+                        subdomain_detected, path_chars, path_words, subdomain_score, protocol_reason, protocol_score,
+                        whois_score, whois_reason, whois_nameservers, whois_registrar, ssl_score, ssl_message) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", 
+                        (url, time, total_score, overall_classification, HTML_sus_score, ", ".join((str(t) for t in HTML_sus_keywords)), 
+                        HTML_DETECTED_TAGS[0], ", ".join(str(t) for t in HTML_DETECTED_TAGS[1]), Domain_distance[0], Domain_distance[1], Domain_distance[2],
+                        Domain_distance[3], ", ".join(str(x) for x in URL_path_subdomain_analysis[0]), ", ".join(str(x) for x in URL_path_subdomain_analysis[1]), ", ".join(str(x) for x in URL_path_subdomain_analysis[2]), 
+                        URL_path_subdomain_analysis[3], protocol_score[0], protocol_score[1],
+                        WHOIS[0], ", ".join(str(r) for r in WHOIS[1]), ", ".join(str(r) for r in WHOIS[2]), WHOIS[3], SSL_certificate[0], SSL_certificate[1]))
+        scan_id = cursor.lastrowid
+
+        #Link scan ID with user ID in user_history_link table.
+        cursor.execute("INSERT INTO user_history_link (user_id, history_id) VALUES (?, ?)", (session["user_id"], scan_id))
+
+        session["curr_scan_id"] = scan_id
+
     else:
-        overall_classification = "Phishing"
-        colour = "#ef4444"
+        #If URL has already been scanned, fetch scan data from database and use it to render the scan.html template.
+        #id=0, URL=1, TIMEDATE=2, TOTALSCORE=3, CLASSIFICATION=4, html_text_score=5, html_text_keywords=6, html_tag_score=7, html_detected_tags=8, domain_closest=9, domain_distance=10, domain_reason=11, domain_score=12, subdomain_detected=13, path_chars=14, path_words=15, subdomain_score=16, protocol_reason=17, protocol_score=18, whois_score=19, whois_reason=20, whois_nameservers=21, whois_registrar=22, ssl_score=23, ssl_message=24
+        scan_data = cursor.execute("SELECT * FROM history WHERE id = ?", (exist[0],)).fetchone()
+        decompose_urld = decompose_url(scan_data[1])
+        HTML_text_content = ""
+        HTML_sus_score = scan_data[5]
+        HTML_sus_keywords = scan_data[6].split(", ")
+        HTML_DETECTED_TAGS = (scan_data[7], scan_data[8].split(", "))
+        Domain_distance = (scan_data[9], scan_data[10], scan_data[11], scan_data[12])
+        URL_path_subdomain_analysis = (scan_data[13].split(", "), scan_data[14].split(", "), scan_data[15].split(", "), scan_data[16])
+        protocol_score = (scan_data[17], scan_data[18])
+        WHOIS = (scan_data[19], scan_data[20].split(", "), scan_data[21].split(", "), scan_data[22])
+        SSL_certificate = (scan_data[23], scan_data[24])
+        total_score = scan_data[3]
+        overall_classification = scan_data[4]
 
+        #Link scan ID with user ID.
+        cursor.execute("INSERT INTO user_history_link (user_id, history_id) VALUES (?, ?)", (session["user_id"], exist[0]))
 
-
-
-    #Insert scan data into history table.
-    #Get the id of scan which was just automaticaly assigned to row. 
-    #", ".join(str(t) for t in HTML_DETECTED_TAGS[1]) is used to convert list of detected HTML tags into a comma saparated stirng. Same applies to other list variables. 
-    cursor.execute("""INSERT INTO history (URL, TIMEDATE, TOTALSCORE, CLASSIFICATION, html_text_score, html_text_keywords,
-                    html_tag_score, html_detected_tags, domain_closest, domain_distance, domain_reason, domain_score,
-                    subdomain_detected, path_chars, path_words, subdomain_score, protocol_reason, protocol_score,
-                    whois_score, whois_reason, whois_nameservers, whois_registrar, ssl_score, ssl_message) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", 
-                    (url, time, total_score, overall_classification, HTML_sus_score, ", ".join(HTML_sus_keywords), 
-                     HTML_DETECTED_TAGS[0], ", ".join(str(t) for t in HTML_DETECTED_TAGS[1]), Domain_distance[0], Domain_distance[1], Domain_distance[2],
-                     Domain_distance[3], ", ".join(str(x) for x in URL_path_subdomain_analysis[0]), ", ".join(str(x) for x in URL_path_subdomain_analysis[1]), ", ".join(str(x) for x in URL_path_subdomain_analysis[2]), 
-                     URL_path_subdomain_analysis[3], protocol_score[0], protocol_score[1],
-                     WHOIS[0], ", ".join(str(r) for r in WHOIS[1]), ", ".join(str(r) for r in WHOIS[2]), WHOIS[3], SSL_certificate[0], SSL_certificate[1]))
-    scan_id = cursor.lastrowid
-
-    #Link scan ID with user ID in user_history_link table.
-    cursor.execute("INSERT INTO user_history_link (user_id, history_id) VALUES (?, ?)", (session["user_id"], scan_id))
+        session["curr_scan_id"] = exist[0]
 
     #Commit and update database.
     Connection.commit()
@@ -328,10 +363,74 @@ def export_history():
 @app.route("/export_PDF", methods=["GET"])
 def export_PDF():
     #Check user's login.
-    if "user_if" not in session:
+    if "user_id" not in session:
         return redirect("/")
     
+    Connection = sqlite3.connect("DB/users.db")
+    cursor = Connection.cursor()
 
+    scan_data = cursor.execute("SELECT * FROM history WHERE id = ?", (session["curr_scan_id"],)).fetchone()
+    decompose_urld = decompose_url(scan_data[1])
+    HTML_text_content = ""
+    HTML_sus_score = scan_data[5]
+    HTML_sus_keywords = scan_data[6].split(", ")
+    HTML_DETECTED_TAGS = (scan_data[7], scan_data[8].split(", "))
+    Domain_distance = (scan_data[9], scan_data[10], scan_data[11], scan_data[12])
+    URL_path_subdomain_analysis = (scan_data[13].split(", "), scan_data[14].split(", "), scan_data[15].split(", "), scan_data[16])
+    protocol_score = (scan_data[17], scan_data[18])
+    WHOIS = (scan_data[19], scan_data[20].split(", "), scan_data[21].split(", "), scan_data[22])
+    SSL_certificate = (scan_data[23], scan_data[24])
+    total_score = scan_data[3]
+    overall_classification = scan_data[4]
+
+    output = io.StringIO()
+
+    #Create a PDF object, Add a page and Set font.
+    pdf = FPDF()
+    pdf.add_page()  
+    pdf.set_font("Arial", size=16)  
+
+    #Add scan data to PDF with basic formatting.
+    pdf.cell(200, 10, txt=f"Scan Report for {decompose_urld}", ln=1, align='C')
+    pdf.cell(200, 10, txt=f"Scan Date: {scan_data[2]}", ln=2, align='L')
+    pdf.cell(200, 10, txt=f"Overall Classification: {overall_classification}", ln=3, align='L')
+    pdf.cell(200, 10, txt=f"Total Score: {total_score}", ln=4, align='L')
+    pdf.cell(200, 10, txt=f"URL Decomposition:", ln=5   , align='L')
+    pdf.cell(200, 10, txt=f"  - Protocol: {decompose_urld['protocol']}", ln=6, align='L')
+    pdf.cell(200, 10, txt=f"  - Domain: {decompose_urld['domain']}", ln=7, align='L')   
+    pdf.cell(200, 10, txt=f"  - Subdomains: {', '.join(decompose_urld['subdomains'])}", ln=8, align='L')
+    pdf.cell(200, 10, txt=f"  - Path: {decompose_urld['path']}", ln=9, align='L')
+    pdf.cell(200, 10, txt=f"  - Query: {decompose_urld['query']}", ln=10, align='L')
+    pdf.cell(200, 10, txt=f"HTML Text Analysis:", ln=11, align='L')
+    pdf.cell(200, 10, txt=f"  - Suspicious Score: {HTML_sus_score}", ln=12, align='L')
+    pdf.cell(200, 10, txt=f"  - Suspicious Keywords: {', '.join(HTML_sus_keywords)}", ln=13, align='L')
+    pdf.cell(200, 10, txt=f"HTML Tag Analysis:", ln=14, align='L')
+    pdf.cell(200, 10, txt=f"  - Suspicious Score: {HTML_DETECTED_TAGS[0]}", ln=15, align='L')
+    pdf.cell(200, 10, txt=f"  - Detected Tags: {', '.join(HTML_DETECTED_TAGS[1])}", ln=16, align='L')
+    pdf.cell(200, 10, txt=f"Domain Analysis:", ln=17,   align='L')      
+    pdf.cell(200, 10, txt=f"  - Closest Legitimate Domain: {Domain_distance[0]}", ln=18, align='L')
+    pdf.cell(200, 10, txt=f"  - Levenshtein Distance: {Domain_distance[1]}", ln=19, align='L')
+    pdf.cell(200, 10, txt=f"  - Reason: {Domain_distance[2]}", ln=20, align='L')
+    pdf.cell(200, 10, txt=f"  - Domain Score: {Domain_distance[3]}", ln=21, align='L')
+    pdf.cell(200, 10, txt=f"Subdomain and Path Analysis:", ln=22, align='L')
+    pdf.cell(200, 10, txt=f"  - Detected Subdomains: {', '.join(URL_path_subdomain_analysis[0])}", ln=23, align='L')
+    pdf.cell(200, 10, txt=f"  - Suspicious Characters in Path: {', '.join(URL_path_subdomain_analysis[1])}", ln=24, align='L')
+    pdf.cell(200, 10, txt=f"  - Suspicious Words in Path: {', '.join(URL_path_subdomain_analysis[2])}", ln=25, align='L')
+    pdf.cell(200, 10, txt=f"  - Subdomain and Path Score: {URL_path_subdomain_analysis[3]}", ln=26, align='L')
+    pdf.cell(200, 10, txt=f"Protocol Analysis:", ln=27, align='L')
+    pdf.cell(200, 10, txt=f"  - Protocol Used: {protocol_score[0]}", ln=28, align='L')
+    pdf.cell(200, 10, txt=f"  - Protocol Score: {protocol_score[1]}", ln=29, align='L')
+    pdf.cell(200, 10, txt=f"WHOIS Analysis:", ln=30, align='L')
+    pdf.cell(200, 10, txt=f"  - WHOIS Score: {WHOIS[0]}", ln=31, align='L')
+    pdf.cell(200, 10, txt=f"  - WHOIS Reasons: {', '.join(WHOIS[1])}", ln=32, align='L')
+    pdf.cell(200, 10, txt=f"  - WHOIS Nameservers: {', '.join(WHOIS[2])}", ln=33, align='L')
+    pdf.cell(200, 10, txt=f"  - WHOIS Registrar: {WHOIS[3]}", ln=34, align='L')
+    pdf.cell(200, 10, txt=f"SSL Certificate Analysis:", ln=35, align='L')
+    pdf.cell(200, 10, txt=f"  - SSL Score: {SSL_certificate[0]}", ln=36, align='L')
+    pdf.cell(200, 10, txt=f"  - SSL Message: {SSL_certificate[1]}", ln=37, align='L')   
+
+    pdf_bytes = pdf.output(dest='S').encode('latin-1')
+    return send_file(io.BytesIO(pdf_bytes),mimetype="application/pdf",as_attachment=True,download_name=f"{session["username"]}_scan_report.pdf")
     
 
 #Run the Flask application.
