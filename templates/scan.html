@@ -10,13 +10,13 @@
         <h1>Scan Results</h1>
 
         <h2>URL</h2>
-        <p><strong>Protocol:</strong> {{ url.protocol }}</p>
-        <p><strong>domain:</strong> {{ url.domain }}</p>
-        <p><strong>subdomain:</strong> {{ url.subdomains }} </p>
-        <p><strong>main Domain:</strong> {{ url.main_domain }}</p>
-        <p><strong>TLD:</strong> {{ url.tld }}</p>
-        <p><strong>Path:</strong> {{ url.path }}</p>
-        <p><strong>Query:</strong> {{ url.query }}</p>
+        <p><strong>Protocol:</strong>{{ url.protocol }}</p>
+        <p><strong>domain:</strong>{{ url.domain }}</p>
+        <p><strong>subdomain:</strong>{{ url.subdomains }} </p>
+        <p><strong>main Domain:</strong>{{ url.main_domain }}</p>
+        <p><strong>TLD:</strong>{{ url.tld }}</p>
+        <p><strong>Path:</strong>{{ url.path }}</p>
+        <p><strong>Query:</strong>{{ url.query }}</p>
         
         <details>
             <summary>Visible Text</summary>
@@ -28,34 +28,34 @@
         <p>{{ HTMLtext_analysis_score }}</p>
 
         <h2>Detected Tags</h2>
-        <p><strong>Score:</strong> {{ detected_tags[0] }}</p>
+        <p><strong>Score:</strong>{{ detected_tags[0] }}</p>
         <p>{{ detected_tags[1] }}</p>
 
         <h2>Domain Distance</h2>
-        <p><strong>Closest Domain:</strong> {{ domain_distance[0] }}</p>
-        <p><strong>Distance:</strong> {{ domain_distance[1] }}</p>
-        <p><strong>Clasification:</strong> {{ domain_distance[2] }}</p>
-        <p><strong>Score:</strong> {{ domain_distance[3] }}</p>
+        <p><strong>Closest Domain:</strong>{{ domain_distance[0] }}</p>
+        <p><strong>Distance:</strong>{{ domain_distance[1] }}</p>
+        <p><strong>Clasification:</strong>{{ domain_distance[2] }}</p>
+        <p><strong>Score:</strong>{{ domain_distance[3] }}</p>
         <br>
 
-        <span title="analysis of subdomain"><h2>URL analysis</h2></span>
-        <p><strong>suspicious words in subdomain</strong> {{ path_subdomain_analysis[0] }}</p> 
-        <p><strong>suspicious characters in path or query</strong> {{ path_subdomain_analysis[1] }}</p>
-        <p><strong>suspicious words in path or query</strong> {{ path_subdomain_analysis[2] }}</p>
-        <p><strong>URL suspicious score</strong> {{ path_subdomain_analysis[3] }}</p>
+        <h2>URL analysis</h2>
+        <p><strong>suspicious words in subdomain</strong>{{ path_subdomain_analysis[0] }}</p> 
+        <p><strong>suspicious characters in path or query</strong>{{ path_subdomain_analysis[1] }}</p>
+        <p><strong>suspicious words in path or query</strong>{{ path_subdomain_analysis[2] }}</p>
+        <p><strong>URL suspicious score</strong>{{ path_subdomain_analysis[3] }}</p>
 
         <h2>Whois lookup</h2>
-        <p><strong>registrar</strong> {{ whois_reassons_score[3] }}</p>
-        <p><strong>Detected factors</strong> {{ whois_reassons_score[1] }}</p>
-        <p><strong>score</strong> {{ whois_reassons_score[0] }}</p>
+        <p><strong>registrar</strong>{{ whois_reassons_score[3] }}</p>
+        <p><strong>Detected factors</strong>{{ whois_reassons_score[1] }}</p>
+        <p><strong>score</strong>{{ whois_reassons_score[0] }}</p>
 
         <h2>SSL certificate analysis</h2>
-        <p><strong>score</strong> {{ SSL_reassons_score[0] }}</p>
-        <p><strong>reason</strong> {{ SSL_reassons_score[1] }}</p>
+        <p><strong>score</strong>{{ SSL_reassons_score[0] }}</p>
+        <p><strong>reason</strong>{{ SSL_reassons_score[1] }}</p>
 
         <h2>Protocol analysis</h2>
-        <p><strong>protocol</strong> {{ protocol[0] }}</p>
-        <p><strong>score</strong> {{ protocol[1] }}</p>
+        <p><strong>protocol</strong>{{ protocol[0] }}</p>
+        <p><strong>score</strong>{{ protocol[1] }}</p>
 
         <h2>Total Score</h2>
         <p><strong>{{ total_score }}</strong></p>

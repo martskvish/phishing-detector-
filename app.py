@@ -6,17 +6,17 @@
 #os for interacting with files and environment variables on the operating system.
 #csv for ecporting scan history to a CSV file.
 #io module used to create file-like objects in memeory. no need to create a physical file on disk.
-
+#fpdf for generating pdf report of scans.
 
 from flask import Flask, render_template, request, redirect, send_file, session, make_response
 import sqlite3
-from shapely import buffer
 from werkzeug.security import generate_password_hash, check_password_hash
 import datetime
 from dotenv import load_dotenv
 import os
 import csv
 import io
+import fpdf
 
 #Import funtions from extractor files
 from HTML_extraction_analysis import extraxt_html_content, extract_text_from_html, HTMLtext_analysis, SQL_HTML_database_extraction, HTML_tag_analyser
@@ -179,8 +179,13 @@ def verify_user():
 @app.route("/scan", methods=["POST"])
 def scan():
 
+    #Check user in session.
     if "user_id" not in session:
         return redirect("/")
+    
+    #Initailize connection.
+    Connection = sqlite3.connect("DB/users.db")
+    cursor = Connection.cursor()
 
     #Pass current time and date to time variable.
     #Retrieves the URL from the form data submitted by the user.
@@ -189,6 +194,7 @@ def scan():
 
     #Decompose the URL, extract HTML content, extract visible text from the HTML and analyze the text for suspicious words and analyse HTML tags.
     #Analyse URL's domain, subdomain with levenshtein distance, path and query for suspicious elements, and check protocol.
+    
     decompose_urld = decompose_url(url)
     unfiltered_HTML = extraxt_html_content(url)
     HTML_text_content = extract_text_from_html(unfiltered_HTML)
@@ -222,13 +228,21 @@ def scan():
         colour = "#ef4444"
 
 
-    #Initailize connection.
-    Connection = sqlite3.connect("DB/users.db")
-    cursor = Connection.cursor()
+
 
     #Insert scan data into history table.
-    #Get the id of scan which was just automaticaly assigned to row.
-    cursor.execute("INSERT INTO history (URL, TIMEDATE, TOTALSCORE, CLASSIFICATION) VALUES (?, ?, ?, ?)", (url, time, total_score, overall_classification))
+    #Get the id of scan which was just automaticaly assigned to row. 
+    #", ".join(str(t) for t in HTML_DETECTED_TAGS[1]) is used to convert list of detected HTML tags into a comma saparated stirng. Same applies to other list variables. 
+    cursor.execute("""INSERT INTO history (URL, TIMEDATE, TOTALSCORE, CLASSIFICATION, html_text_score, html_text_keywords,
+                    html_tag_score, html_detected_tags, domain_closest, domain_distance, domain_reason, domain_score,
+                    subdomain_detected, path_chars, path_words, subdomain_score, protocol_reason, protocol_score,
+                    whois_score, whois_reason, whois_nameservers, whois_registrar, ssl_score, ssl_message) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", 
+                    (url, time, total_score, overall_classification, HTML_sus_score, ", ".join(HTML_sus_keywords), 
+                     HTML_DETECTED_TAGS[0], ", ".join(str(t) for t in HTML_DETECTED_TAGS[1]), Domain_distance[0], Domain_distance[1], Domain_distance[2],
+                     Domain_distance[3], ", ".join(str(x) for x in URL_path_subdomain_analysis[0]), ", ".join(str(x) for x in URL_path_subdomain_analysis[1]), ", ".join(str(x) for x in URL_path_subdomain_analysis[2]), 
+                     URL_path_subdomain_analysis[3], protocol_score[0], protocol_score[1],
+                     WHOIS[0], ", ".join(str(r) for r in WHOIS[1]), ", ".join(str(r) for r in WHOIS[2]), WHOIS[3], SSL_certificate[0], SSL_certificate[1]))
     scan_id = cursor.lastrowid
 
     #Link scan ID with user ID in user_history_link table.
@@ -311,6 +325,14 @@ def export_history():
     #Define file type as text/csv, set it to be downloaded as an attachment and give it a name based on the user's username.
     return send_file(io.BytesIO(output.getvalue().encode()),mimetype="text/csv",as_attachment=True,download_name=f"{session["username"]}_scan_history.csv")
 
+@app.route("/export_PDF", methods=["GET"])
+def export_PDF():
+    #Check user's login.
+    if "user_if" not in session:
+        return redirect("/")
+    
+
+    
 
 #Run the Flask application.
 #With debug mode on to get more info about errors/bugs.

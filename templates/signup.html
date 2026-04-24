@@ -10,7 +10,7 @@
     <main>
         <h2>Signup</h2>
         {% if error %}
-            <p style="color: red;">{{ error }}</p>
+            <p> style="color: red;">{{ error }}</p>
         {% endif %}
         <form action="/add_user" method="post">
             <input type="text" name="username" placeholder="Enter Username" required>

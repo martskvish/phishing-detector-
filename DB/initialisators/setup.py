@@ -5,21 +5,21 @@ import os
 
 DB_PATH = "DB/sus_keywords.db"
 
-# ── Data ────────────────────────────────────────────────────────────────────
+#Data
 
 URL_CHARACTERS = [
-    ('@',   'High',   15),  # hides real domain e.g. google.com@evil.com
-    ('%',   'High',   10),  # URL encoding used to hide malicious content
-    ('..',  'High',   10),  # directory traversal
-    ('//',  'Medium',  6),  # double slash after protocol
-    (';',   'Medium',  6),  # uncommon in URLs
-    ('|',   'High',   10),  # very suspicious
-    ('`',   'High',   10),  # very suspicious
-    ('~',   'Medium',  5),  # uncommon
-    ('$',   'Medium',  5),  # uncommon
-    ('!',   'Medium',  5),  # uncommon in URLs
-    ('*',   'High',    8),  # wildcard, suspicious
-    (',',   'Medium',  5),  # uncommon in URLs
+    ('@',   'High',   15),  #hides real domain e.g. google.com@evil.com
+    ('%',   'High',   10),  #URL encoding used to hide malicious content
+    ('..',  'High',   10),  #directory traversal
+    ('//',  'Medium',  6),  #double slash after protocol
+    (';',   'Medium',  6),  #uncommon in URLs
+    ('|',   'High',   10),  #very suspicious
+    ('`',   'High',   10),  #very suspicious
+    ('~',   'Medium',  5),  #uncommon
+    ('$',   'Medium',  5),  #uncommon
+    ('!',   'Medium',  5),  #uncommon in URLs
+    ('*',   'High',    8),  #wildcard, suspicious
+    (',',   'Medium',  5),  #uncommon in URLs
 ]
 
 SUBDOMAIN_KEYWORDS = [
@@ -54,7 +54,7 @@ SUBDOMAIN_KEYWORDS = [
 ]
 
 PATH_KEYWORDS = [
-    # Account related
+    #Account related
     ('login',        'High',   10),
     ('signin',       'High',   10),
     ('sign-in',      'High',   10),
@@ -67,7 +67,7 @@ PATH_KEYWORDS = [
     ('recover',      'High',    8),
     ('unlock',       'High',    8),
 
-    # Financial
+    #Financial
     ('checkout',     'High',    8),
     ('payment',      'High',    8),
     ('billing',      'High',    8),
@@ -75,7 +75,7 @@ PATH_KEYWORDS = [
     ('refund',       'High',    8),
     ('wallet',       'High',    8),
 
-    # Technical suspicious
+    #Technical suspicious
     ('webscr',       'High',   12),
     ('wp-admin',     'High',   12),
     ('admin',        'High',    9),
@@ -124,7 +124,7 @@ HTML_PHRASES = [
     ('limited offer',           'Medium',    6),
     ('phishing',                'Critical', 20),
     ('free',                    'Low',       4),
-    # Added
+    #Added
     ('verify your identity',    'Critical', 20),
     ('enter your password',     'Critical', 18),
     ('your card has been',      'Critical', 18),
@@ -137,8 +137,7 @@ HTML_PHRASES = [
     ('you have won',            'High',      8),
 ]
 
-# ── Setup ────────────────────────────────────────────────────────────────────
-
+#Setup
 def create_tables(cursor):
     cursor.executescript("""
         CREATE TABLE IF NOT EXISTS url_suspicious_characters (
@@ -190,7 +189,7 @@ def insert_data(cursor):
     )
 
 
-# ── Main ─────────────────────────────────────────────────────────────────────
+#Main
 
 def main():
     if os.path.exists(DB_PATH):

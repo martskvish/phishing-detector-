@@ -222,8 +222,3 @@ def HTML_code_jaccard(HTML_raw, simmilar):
 
     return jaccard_similarity, reasson
 '''
-    
-   
-
-
-    
