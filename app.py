@@ -196,7 +196,8 @@ def scan():
     exist = cursor.execute("SELECT id, TIMEDATE FROM history WHERE URL = ?", (url,)).fetchone()
     exist_url = False
 
-
+    #If URL has been scanned before, check if the scan is less than 3 days old. 
+    #If it is set exist_url to True, if not set exist_url to False to trigger a new scan and update the database with new scan data.
     if exist:
         scan_time = datetime.datetime.strptime(exist[1], "%d-%m-%Y %H:%M:%S")
         if (datetime.datetime.now() - scan_time).days < 3:
@@ -242,31 +243,30 @@ def scan():
 
 
         #Insert scan data into history table.
-        #Get the id of scan which was just automaticaly assigned to row. 
         #", ".join(str(t) for t in HTML_DETECTED_TAGS[1]) is used to convert list of detected HTML tags into a comma saparated stirng. Same applies to other list variables. 
+        #Get the id of scan which was just automaticaly assigned to row to link scan id with user. 
         cursor.execute("""INSERT INTO history (URL, TIMEDATE, TOTALSCORE, CLASSIFICATION, html_text_score, html_text_keywords,
                         html_tag_score, html_detected_tags, domain_closest, domain_distance, domain_reason, domain_score,
                         subdomain_detected, path_chars, path_words, subdomain_score, protocol_reason, protocol_score,
-                        whois_score, whois_reason, whois_nameservers, whois_registrar, ssl_score, ssl_message) 
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", 
+                        whois_score, whois_reason, whois_nameservers, whois_registrar, ssl_score, ssl_message, Visible_Text) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                         (url, time, total_score, overall_classification, HTML_sus_score, ", ".join((str(t) for t in HTML_sus_keywords)), 
                         HTML_DETECTED_TAGS[0], ", ".join(str(t) for t in HTML_DETECTED_TAGS[1]), Domain_distance[0], Domain_distance[1], Domain_distance[2],
                         Domain_distance[3], ", ".join(str(x) for x in URL_path_subdomain_analysis[0]), ", ".join(str(x) for x in URL_path_subdomain_analysis[1]), ", ".join(str(x) for x in URL_path_subdomain_analysis[2]), 
                         URL_path_subdomain_analysis[3], protocol_score[0], protocol_score[1],
-                        WHOIS[0], ", ".join(str(r) for r in WHOIS[1]), ", ".join(str(r) for r in WHOIS[2]), WHOIS[3], SSL_certificate[0], SSL_certificate[1]))
+                        WHOIS[0], ", ".join(str(r) for r in WHOIS[1]), ", ".join(str(r) for r in WHOIS[2]), WHOIS[3], SSL_certificate[0], SSL_certificate[1], HTML_text_content))
         scan_id = cursor.lastrowid
 
         #Link scan ID with user ID in user_history_link table.
         cursor.execute("INSERT INTO user_history_link (user_id, history_id) VALUES (?, ?)", (session["user_id"], scan_id))
 
         session["curr_scan_id"] = scan_id
-
     else:
         #If URL has already been scanned, fetch scan data from database and use it to render the scan.html template.
         #id=0, URL=1, TIMEDATE=2, TOTALSCORE=3, CLASSIFICATION=4, html_text_score=5, html_text_keywords=6, html_tag_score=7, html_detected_tags=8, domain_closest=9, domain_distance=10, domain_reason=11, domain_score=12, subdomain_detected=13, path_chars=14, path_words=15, subdomain_score=16, protocol_reason=17, protocol_score=18, whois_score=19, whois_reason=20, whois_nameservers=21, whois_registrar=22, ssl_score=23, ssl_message=24
         scan_data = cursor.execute("SELECT * FROM history WHERE id = ?", (exist[0],)).fetchone()
         decompose_urld = decompose_url(scan_data[1])
-        HTML_text_content = ""
+        HTML_text_content = scan_data[25]
         HTML_sus_score = scan_data[5]
         HTML_sus_keywords = scan_data[6].split(", ")
         HTML_DETECTED_TAGS = (scan_data[7], scan_data[8].split(", "))
@@ -281,6 +281,7 @@ def scan():
         #Link scan ID with user ID.
         cursor.execute("INSERT INTO user_history_link (user_id, history_id) VALUES (?, ?)", (session["user_id"], exist[0]))
 
+        #Store current scan ID in session to be used for PDF function.
         session["curr_scan_id"] = exist[0]
 
     #Commit and update database.
@@ -362,16 +363,20 @@ def export_history():
 
 @app.route("/export_PDF", methods=["GET"])
 def export_PDF():
+    
     #Check user's login.
     if "user_id" not in session:
         return redirect("/")
     
+    #Initialize connection to DB.
     Connection = sqlite3.connect("DB/users.db")
     cursor = Connection.cursor()
 
+    #Extract scan data from for the scan ID that is stored in session.
+    #Decompose extracted list into variables for easier use later on.
     scan_data = cursor.execute("SELECT * FROM history WHERE id = ?", (session["curr_scan_id"],)).fetchone()
     decompose_urld = decompose_url(scan_data[1])
-    HTML_text_content = ""
+    HTML_text_content = scan_data[25]
     HTML_sus_score = scan_data[5]
     HTML_sus_keywords = scan_data[6].split(", ")
     HTML_DETECTED_TAGS = (scan_data[7], scan_data[8].split(", "))
@@ -383,52 +388,75 @@ def export_PDF():
     total_score = scan_data[3]
     overall_classification = scan_data[4]
 
-    output = io.StringIO()
-
     #Create a PDF object, Add a page and Set font.
     pdf = FPDF()
-    pdf.add_page()  
-    pdf.set_font("Arial", size=16)  
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
 
-    #Add scan data to PDF with basic formatting.
-    pdf.cell(200, 10, txt=f"Scan Report for {decompose_urld}", ln=1, align='C')
-    pdf.cell(200, 10, txt=f"Scan Date: {scan_data[2]}", ln=2, align='L')
-    pdf.cell(200, 10, txt=f"Overall Classification: {overall_classification}", ln=3, align='L')
-    pdf.cell(200, 10, txt=f"Total Score: {total_score}", ln=4, align='L')
-    pdf.cell(200, 10, txt=f"URL Decomposition:", ln=5   , align='L')
-    pdf.cell(200, 10, txt=f"  - Protocol: {decompose_urld['protocol']}", ln=6, align='L')
-    pdf.cell(200, 10, txt=f"  - Domain: {decompose_urld['domain']}", ln=7, align='L')   
-    pdf.cell(200, 10, txt=f"  - Subdomains: {', '.join(decompose_urld['subdomains'])}", ln=8, align='L')
-    pdf.cell(200, 10, txt=f"  - Path: {decompose_urld['path']}", ln=9, align='L')
-    pdf.cell(200, 10, txt=f"  - Query: {decompose_urld['query']}", ln=10, align='L')
-    pdf.cell(200, 10, txt=f"HTML Text Analysis:", ln=11, align='L')
-    pdf.cell(200, 10, txt=f"  - Suspicious Score: {HTML_sus_score}", ln=12, align='L')
-    pdf.cell(200, 10, txt=f"  - Suspicious Keywords: {', '.join(HTML_sus_keywords)}", ln=13, align='L')
-    pdf.cell(200, 10, txt=f"HTML Tag Analysis:", ln=14, align='L')
-    pdf.cell(200, 10, txt=f"  - Suspicious Score: {HTML_DETECTED_TAGS[0]}", ln=15, align='L')
-    pdf.cell(200, 10, txt=f"  - Detected Tags: {', '.join(HTML_DETECTED_TAGS[1])}", ln=16, align='L')
-    pdf.cell(200, 10, txt=f"Domain Analysis:", ln=17,   align='L')      
-    pdf.cell(200, 10, txt=f"  - Closest Legitimate Domain: {Domain_distance[0]}", ln=18, align='L')
-    pdf.cell(200, 10, txt=f"  - Levenshtein Distance: {Domain_distance[1]}", ln=19, align='L')
-    pdf.cell(200, 10, txt=f"  - Reason: {Domain_distance[2]}", ln=20, align='L')
-    pdf.cell(200, 10, txt=f"  - Domain Score: {Domain_distance[3]}", ln=21, align='L')
-    pdf.cell(200, 10, txt=f"Subdomain and Path Analysis:", ln=22, align='L')
-    pdf.cell(200, 10, txt=f"  - Detected Subdomains: {', '.join(URL_path_subdomain_analysis[0])}", ln=23, align='L')
-    pdf.cell(200, 10, txt=f"  - Suspicious Characters in Path: {', '.join(URL_path_subdomain_analysis[1])}", ln=24, align='L')
-    pdf.cell(200, 10, txt=f"  - Suspicious Words in Path: {', '.join(URL_path_subdomain_analysis[2])}", ln=25, align='L')
-    pdf.cell(200, 10, txt=f"  - Subdomain and Path Score: {URL_path_subdomain_analysis[3]}", ln=26, align='L')
-    pdf.cell(200, 10, txt=f"Protocol Analysis:", ln=27, align='L')
-    pdf.cell(200, 10, txt=f"  - Protocol Used: {protocol_score[0]}", ln=28, align='L')
-    pdf.cell(200, 10, txt=f"  - Protocol Score: {protocol_score[1]}", ln=29, align='L')
-    pdf.cell(200, 10, txt=f"WHOIS Analysis:", ln=30, align='L')
-    pdf.cell(200, 10, txt=f"  - WHOIS Score: {WHOIS[0]}", ln=31, align='L')
-    pdf.cell(200, 10, txt=f"  - WHOIS Reasons: {', '.join(WHOIS[1])}", ln=32, align='L')
-    pdf.cell(200, 10, txt=f"  - WHOIS Nameservers: {', '.join(WHOIS[2])}", ln=33, align='L')
-    pdf.cell(200, 10, txt=f"  - WHOIS Registrar: {WHOIS[3]}", ln=34, align='L')
-    pdf.cell(200, 10, txt=f"SSL Certificate Analysis:", ln=35, align='L')
-    pdf.cell(200, 10, txt=f"  - SSL Score: {SSL_certificate[0]}", ln=36, align='L')
-    pdf.cell(200, 10, txt=f"  - SSL Message: {SSL_certificate[1]}", ln=37, align='L')   
+    #Function to turn titles into bold and bigger font.
+    def heading(text):
+        pdf.set_font("Arial", style="B", size=13)
+        pdf.multi_cell(0, 8, txt=text)
 
+    #Function for normal text, set font back to normal and smaller size.
+    def row(text):
+        pdf.set_font("Arial", size=11)
+        pdf.multi_cell(0, 7, txt=text)
+
+    #Write scan report to PDF, using the defined functions to format the text and make it more visually appealing.
+    #ln(2) adds a line break of 2 units to create space between sections.
+    pdf.set_font("Arial", style="B", size=16)
+    pdf.multi_cell(0, 10, txt=f"Scan Report for {decompose_urld}", align='C')
+    pdf.set_font("Arial", size=11)
+    pdf.multi_cell(0, 7, txt=f"Scan Date: {scan_data[2]}")
+    pdf.multi_cell(0, 7, txt=f"Overall Classification: {overall_classification}")
+    pdf.multi_cell(0, 7, txt=f"Total Score: {total_score}")
+    pdf.ln(2)
+    heading("URL Decomposition:")
+    row(f"  - Protocol: {decompose_urld['protocol']}")
+    row(f"  - Domain: {decompose_urld['domain']}")
+    row(f"  - Subdomains: {', '.join(decompose_urld['subdomains'])}")
+    row(f"  - Path: {decompose_urld['path']}")
+    row(f"  - Query: {decompose_urld['query']}")
+    pdf.ln(2)
+    heading("HTML Text Analysis:")
+    row(f"  - Suspicious Score: {HTML_sus_score}")
+    row(f"  - Suspicious Keywords: {', '.join(HTML_sus_keywords)}")
+    pdf.ln(2)
+    heading("HTML Tag Analysis:")
+    row(f"  - Suspicious Score: {HTML_DETECTED_TAGS[0]}")
+    row(f"  - Detected Tags: {', '.join(HTML_DETECTED_TAGS[1])}")
+    pdf.ln(2)
+    heading("Domain Analysis:")
+    row(f"  - Closest Legitimate Domain: {Domain_distance[0]}")
+    row(f"  - Levenshtein Distance: {Domain_distance[1]}")
+    row(f"  - Reason: {Domain_distance[2]}")
+    row(f"  - Domain Score: {Domain_distance[3]}")
+    pdf.ln(2)
+    heading("Subdomain and Path Analysis:")
+    row(f"  - Detected Subdomains: {', '.join(URL_path_subdomain_analysis[0])}")
+    row(f"  - Suspicious Characters in Path: {', '.join(URL_path_subdomain_analysis[1])}")
+    row(f"  - Suspicious Words in Path: {', '.join(URL_path_subdomain_analysis[2])}")
+    row(f"  - Subdomain and Path Score: {URL_path_subdomain_analysis[3]}")
+    pdf.ln(2)
+    heading("Protocol Analysis:")
+    row(f"  - Protocol Used: {protocol_score[0]}")
+    row(f"  - Protocol Score: {protocol_score[1]}")
+    pdf.ln(2)
+    heading("WHOIS Analysis:")
+    row(f"  - WHOIS Score: {WHOIS[0]}")
+    row(f"  - WHOIS Reasons: {', '.join(WHOIS[1])}")
+    row(f"  - WHOIS Nameservers: {', '.join(WHOIS[2])}")
+    row(f"  - WHOIS Registrar: {WHOIS[3]}")
+    pdf.ln(2)
+    heading("SSL Certificate Analysis:")
+    row(f"  - SSL Score: {SSL_certificate[0]}")
+    row(f"  - SSL Message: {SSL_certificate[1]}")
+    pdf.ln(2)
+    heading("Visible Text:")
+    row(f"{HTML_text_content}")
+
+    #Pass the generated PDF as bytes to send file, set the file type and name for download. 
     pdf_bytes = pdf.output(dest='S').encode('latin-1')
     return send_file(io.BytesIO(pdf_bytes),mimetype="application/pdf",as_attachment=True,download_name=f"{session["username"]}_scan_report.pdf")
     
