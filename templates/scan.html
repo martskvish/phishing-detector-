@@ -27,6 +27,11 @@
         <h2>Suspicious Words and Score</h2>
         <p>{{ suswords }}</p>
         <p>{{ HTMLtext_analysis_score }}</p>
+        
+        <h2>HTML jaccard Similarity</h2>
+        <p><strong>Similarity:</strong>{{ jaccard_similarity[0] }}</p>
+        <p><strong>Reason:</strong>{{ jaccard_similarity[1] }}</p>
+        <p><strong>Score:</strong>{{ jaccard_similarity[2] }}</p>
 
         <h2>Detected Tags</h2>
         <p><strong>Score:</strong>{{ detected_tags[0] }}</p>

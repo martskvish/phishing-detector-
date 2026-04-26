@@ -8,7 +8,7 @@
 #io module used to create file-like objects in memeory. no need to create a physical file on disk.
 #fpdf for generating pdf report of scans.
 
-from flask import Flask, render_template, request, redirect, send_file, session, make_response
+from flask import Flask, render_template, request, redirect, send_file, session
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
 import datetime
@@ -19,7 +19,7 @@ import io
 from fpdf import FPDF
 
 #Import funtions from extractor files
-from HTML_extraction_analysis import extraxt_html_content, extract_text_from_html, HTMLtext_analysis, SQL_HTML_database_extraction, HTML_tag_analyser
+from HTML_extraction_analysis import extraxt_html_content, extract_text_from_html, HTMLtext_analysis, SQL_HTML_database_extraction, HTML_tag_analyser, HTML_code_jaccard
 from URL_extraction_analysis import decompose_url, levenshteins_distance_domain, analyse_subdomain_path, protocol_analysis
 from EXTRA_factor_detectors import WHOIS_lookup, SSL_certificate_analysis
 from auth import gen_otp, send_otp
@@ -220,8 +220,15 @@ def scan():
         WHOIS = WHOIS_lookup(decompose_urld["domain"])
         SSL_certificate = SSL_certificate_analysis(url)
 
-        #calculate overall score.
-        total_score = HTML_sus_score + HTML_DETECTED_TAGS[0] + URL_path_subdomain_analysis[3] + protocol_score[1] + Domain_distance[3] + WHOIS[0] + SSL_certificate[0]
+        #Check if the closest domain found starts with http:// or https://, if not add https://.
+        if not Domain_distance[0].startswith(("http://", "https://")):
+            closest_domain_url = "https://" + Domain_distance[0]
+        else:
+            closest_domain_url = Domain_distance[0]
+        jaccard_similarity = HTML_code_jaccard(unfiltered_HTML, extract_text_from_html(extraxt_html_content(closest_domain_url)) ,Domain_distance[1])
+
+        #Calculate overall score.
+        total_score = HTML_sus_score + HTML_DETECTED_TAGS[0] + URL_path_subdomain_analysis[3] + protocol_score[1] + Domain_distance[3] + WHOIS[0] + SSL_certificate[0] + jaccard_similarity[2]
 
         #Compare score to thresholds and classify website.
         overall_classification = ""
@@ -248,13 +255,13 @@ def scan():
         cursor.execute("""INSERT INTO history (URL, TIMEDATE, TOTALSCORE, CLASSIFICATION, html_text_score, html_text_keywords,
                         html_tag_score, html_detected_tags, domain_closest, domain_distance, domain_reason, domain_score,
                         subdomain_detected, path_chars, path_words, subdomain_score, protocol_reason, protocol_score,
-                        whois_score, whois_reason, whois_nameservers, whois_registrar, ssl_score, ssl_message, Visible_Text) 
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        whois_score, whois_reason, whois_nameservers, whois_registrar, ssl_score, ssl_message, Visible_Text, jaccard_similarity, jaccard_reason, jaccard_score) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                         (url, time, total_score, overall_classification, HTML_sus_score, ", ".join((str(t) for t in HTML_sus_keywords)), 
                         HTML_DETECTED_TAGS[0], ", ".join(str(t) for t in HTML_DETECTED_TAGS[1]), Domain_distance[0], Domain_distance[1], Domain_distance[2],
                         Domain_distance[3], ", ".join(str(x) for x in URL_path_subdomain_analysis[0]), ", ".join(str(x) for x in URL_path_subdomain_analysis[1]), ", ".join(str(x) for x in URL_path_subdomain_analysis[2]), 
                         URL_path_subdomain_analysis[3], protocol_score[0], protocol_score[1],
-                        WHOIS[0], ", ".join(str(r) for r in WHOIS[1]), ", ".join(str(r) for r in WHOIS[2]), WHOIS[3], SSL_certificate[0], SSL_certificate[1], HTML_text_content))
+                        WHOIS[0], ", ".join(str(r) for r in WHOIS[1]), ", ".join(str(r) for r in WHOIS[2]), WHOIS[3], SSL_certificate[0], SSL_certificate[1], HTML_text_content, jaccard_similarity[0], jaccard_similarity[1], jaccard_similarity[2]))
         scan_id = cursor.lastrowid
 
         #Link scan ID with user ID in user_history_link table.
@@ -277,6 +284,7 @@ def scan():
         SSL_certificate = (scan_data[23], scan_data[24])
         total_score = scan_data[3]
         overall_classification = scan_data[4]
+        jaccard_similarity = (scan_data[26], scan_data[27], scan_data[28])
 
         #Link scan ID with user ID.
         cursor.execute("INSERT INTO user_history_link (user_id, history_id) VALUES (?, ?)", (session["user_id"], exist[0]))
@@ -291,7 +299,7 @@ def scan():
     #Renders the scan.html template and passes the decomposed URL, visible text, distance of domain, suspicious words and characters as variables.
     return render_template("scan.html", url=decompose_urld, visible_text=HTML_text_content, HTMLtext_analysis_score=HTML_sus_score, suswords=HTML_sus_keywords,
                            detected_tags=HTML_DETECTED_TAGS, domain_distance = Domain_distance, path_subdomain_analysis = URL_path_subdomain_analysis, total_score=total_score,
-                           protocol=protocol_score, web_classification = overall_classification, whois_reassons_score = WHOIS, SSL_reassons_score = SSL_certificate)
+                           protocol=protocol_score, web_classification = overall_classification, whois_reassons_score = WHOIS, SSL_reassons_score = SSL_certificate, jaccard_similarity = jaccard_similarity)
 
 @app.route("/history",  methods=["GET"])
 def scan_history():
@@ -387,6 +395,7 @@ def export_PDF():
     SSL_certificate = (scan_data[23], scan_data[24])
     total_score = scan_data[3]
     overall_classification = scan_data[4]
+    jaccard_similarity = (scan_data[26], scan_data[27], scan_data[28])
 
     #Create a PDF object, Add a page and Set font.
     pdf = FPDF()
@@ -422,6 +431,9 @@ def export_PDF():
     heading("HTML Text Analysis:")
     row(f"  - Suspicious Score: {HTML_sus_score}")
     row(f"  - Suspicious Keywords: {', '.join(HTML_sus_keywords)}")
+    row(f"  - Jaccard Similarity: {jaccard_similarity[0]}")
+    row(f"  - Jaccard Reason: {jaccard_similarity[1]}")
+    row(f"  - Jaccard Score: {jaccard_similarity[2]}")
     pdf.ln(2)
     heading("HTML Tag Analysis:")
     row(f"  - Suspicious Score: {HTML_DETECTED_TAGS[0]}")

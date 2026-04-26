@@ -7,18 +7,22 @@ import requests
 def extraxt_html_content(url):
     #Send a GET request
     try:
-        response = requests.get(url)
+        #Set a timeout to prevent the program from hanging indefiently if the website is unresponsive.
+        response = requests.get(url, timeout=10)
 
         #Check if the request was unsuccessful.
         #If not return error.
         if response.status_code != 200:
             print(f"Failed to retrieve page. Status code:", response.status_code)
         return response
-    except requests.exceptions.ConnectionError as error:
+    except requests.exceptions.RequestException as error:
         print(f"connection error: {error}")
         return None
 
 def extract_text_from_html(unfiltered):
+
+    if unfiltered is None:
+        return ""
 
     #Convert the raw HTML string into a structured, searchable tree object which is stored in filtered.
     filtered = BeautifulSoup(unfiltered.text, 'html.parser')
@@ -167,58 +171,65 @@ def HTML_tag_analyser(HTML_raw, full_domain):
 
     return score, matched_tags
 
-'''
-def HTML_code_jaccard(HTML_raw, simmilar):
+
+def HTML_code_jaccard(HTML_raw, simmilar, levenshteins_distance_domain):
 
     #optimisation (only run heavy checks when needed)
+    if levenshteins_distance_domain >= 1 and levenshteins_distance_domain <= 4:  
+        
+        jaccard_similarity = 0.0
+        reasson = ""
+        score = 0 
 
-    jaccard_similarity = 0.0
-    reasson = ""
+        #Convert raw HTML code into structured, searchable tree.
+        filtered1 = BeautifulSoup(HTML_raw.text, 'html.parser')
+        filtered2 = BeautifulSoup(simmilar.text, 'html.parser')
 
-    #Convert raw HTML code into structured, searchable tree.
-    filtered1 = BeautifulSoup(HTML_raw.text, 'html.parser')
-    filtered2 = BeautifulSoup(simmilar.text, 'html.parser')
+        #Remove script and style tags and their content from the parsed HTML. 
+        #These tags often contain code that is not visible to users but can be used for malicious purposes.
+        #Allows us to focuse on the vissible conent on web page.
+        for tag in filtered1(["script", "style"]):
+            tag.decompose()
+        for tag in filtered2(["script", "style"]):
+            tag.decompose()
 
-    #Remove script and style tags and their content from the parsed HTML. 
-    #These tags often contain code that is not visible to users but can be used for malicious purposes.
-    #Allows us to focuse on the vissible conent on web page.
-    for tag in filtered1(["script", "style"]):
-        tag.decompose()
-    for tag in filtered2(["script", "style"]):
-        tag.decompose()
+        #Extract the visible text from the both filtered HTML and convert it to lowercase for better comparison.
+        #Split the extracted text into individual words and set to set.
+        html_text = filtered1.get_text(separator=" ").lower()
+        words1 = set(html_text.split())
 
-    #Extract the visible text from the both filtered HTML and convert it to lowercase for better comparison.
-    #Split the extracted text into individual words and set to set.
-    html_text = filtered1.get_text(separator=" ").lower()
-    words1 = set(html_text.split())
+        html_text2 = filtered2.get_text(separator=" ").lower()
+        words2 = set(html_text2.split())    
 
-    html_text2 = filtered2.get_text(separator=" ").lower()
-    words2 = set(html_text2.split())    
+        #Intersection of two sets
+        intersection = len(words1.intersection(words2))
+        #Unions of two sets
+        union = len(words1.union(words2))
 
-    #Intersection of two sets
-    intersection = len(words1.intersection(words2))
-    #Unions of two sets
-    union = len(words1.union(words2))
-
-    #Calculate Jaccard similarity as the size of the intersection divided by the size of the union of the two sets of words.
-    #If the union is zero, it means both sets are empty and the similarity is defined as 0.0 to avoid division by zero error.
-    if union == 0:
-        jaccard_similarity = 0.0 
-    else:
-        jaccard_similarity = intersection / union 
+        #Calculate Jaccard similarity as the size of the intersection divided by the size of the union of the two sets of words.
+        #If the union is zero, it means both sets are empty and the similarity is defined as 0.0 to avoid division by zero error.
+        if union == 0:
+            jaccard_similarity = 0.0 
+        else:
+            jaccard_similarity = intersection / union 
+        
+        if jaccard_similarity > 0.8:
+            reasson = "Very high similarity to known site (possible clone)"
+            score = 30
+        elif jaccard_similarity > 0.5:
+            reasson = "Moderate similarity detected"
+            score = 15
+        elif jaccard_similarity > 0.2:
+            reasson = "Low similarity"
+            score = 5
+        else:
+            reasson = "No significant similarity"
+            score = 0
     
-    if jaccard_similarity > 0.8:
-        reasson = "Very high similarity to known site (possible clone)"
-        jaccard_similarity = 30
-    elif jaccard_similarity > 0.5:
-        reasson = "Moderate similarity detected"
-        jaccard_similarity = 15
-    elif jaccard_similarity > 0.2:
-        reasson = "Low similarity"
-        jaccard_similarity = 5
     else:
-        reasson = "No significant similarity"
-        jaccard_similarity = 0
+        jaccard_similarity = 0.0
+        reasson = "Domain name eithersame or not similar enough to known sites for HTML comparison to be meaningful"
+        score = 0 
 
-    return jaccard_similarity, reasson
-'''
+        return jaccard_similarity, reasson, score
+    return jaccard_similarity, reasson, score
