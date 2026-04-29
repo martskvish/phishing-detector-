@@ -8,6 +8,8 @@
 #io module used to create file-like objects in memeory. no need to create a physical file on disk.
 #fpdf for generating pdf report of scans.
 
+from multiprocessing.dummy import connection
+
 from flask import Flask, render_template, request, redirect, send_file, session
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -182,19 +184,21 @@ def scan():
     #Check user in session.
     if "user_id" not in session:
         return redirect("/")
-    
-    #Initailize connection.
-    Connection = sqlite3.connect("DB/users.db")
-    cursor = Connection.cursor()
 
     #Pass current time and date to time variable.
     #Retrieves the URL from the form data submitted by the user.
     time = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
     url = request.form.get('url')
 
+    Connection = sqlite3.connect("DB/users.db")
+    cursor = Connection.cursor()
+
     #Check if URL has already been scanned.
     exist = cursor.execute("SELECT id, TIMEDATE FROM history WHERE URL = ?", (url,)).fetchone()
     exist_url = False
+
+    Connection.commit()
+    Connection.close()
 
     #If URL has been scanned before, check if the scan is less than 3 days old. 
     #If it is set exist_url to True, if not set exist_url to False to trigger a new scan and update the database with new scan data.
@@ -248,6 +252,9 @@ def scan():
             overall_classification = "Phishing"
             colour = "#ef4444"
 
+        #As scanning takes time to reduce risk of DB errors open connection later.
+        Connection = sqlite3.connect("DB/users.db")
+        cursor = Connection.cursor()
 
         #Insert scan data into history table.
         #", ".join(str(t) for t in HTML_DETECTED_TAGS[1]) is used to convert list of detected HTML tags into a comma saparated stirng. Same applies to other list variables. 
@@ -264,11 +271,32 @@ def scan():
                         WHOIS[0], ", ".join(str(r) for r in WHOIS[1]), ", ".join(str(r) for r in WHOIS[2]), WHOIS[3], SSL_certificate[0], SSL_certificate[1], HTML_text_content, jaccard_similarity[0], jaccard_similarity[1], jaccard_similarity[2]))
         scan_id = cursor.lastrowid
 
+        #Get current year and month to store in statistics table.
+        now = datetime.datetime.now()
+        year_month = now.strftime("%Y-%m")
+        
+        #Updtae each month's statistics in the table, coresponding to ovrall classification of the scans performed in the month by all users.
+        cursor.execute("""INSERT OR IGNORE INTO statistics (date) VALUES (?)""", (year_month,))
+        if overall_classification == "Safe":
+            cursor.execute("""UPDATE statistics SET Safe = Safe + 1 WHERE date = ?""", (year_month,))
+        elif overall_classification == "Low Risk":
+            cursor.execute("""UPDATE statistics SET Low_Risk = Low_Risk + 1 WHERE date = ?""", (year_month,))   
+        elif overall_classification == "Suspicious":
+            cursor.execute("""UPDATE statistics SET Suspicious = Suspicious + 1 WHERE date = ?""", (year_month,))   
+        elif overall_classification == "Likely Phishing":
+            cursor.execute("""UPDATE statistics SET Likely Phishing = Likely Phishing + 1 WHERE date = ?""", (year_month,))
+        else:
+            cursor.execute("""UPDATE statistics SET Phishing = Phishing + 1 WHERE date = ?""", (year_month,))
+
         #Link scan ID with user ID in user_history_link table.
-        cursor.execute("INSERT INTO user_history_link (user_id, history_id) VALUES (?, ?)", (session["user_id"], scan_id))
+        cursor.execute("""INSERT INTO user_history_link (user_id, history_id) VALUES (?, ?)""", (session["user_id"], scan_id))
 
         session["curr_scan_id"] = scan_id
     else:
+        #Initializes connection to database.
+        Connection = sqlite3.connect("DB/users.db")
+        cursor = Connection.cursor()
+
         #If URL has already been scanned, fetch scan data from database and use it to render the scan.html template.
         #id=0, URL=1, TIMEDATE=2, TOTALSCORE=3, CLASSIFICATION=4, html_text_score=5, html_text_keywords=6, html_tag_score=7, html_detected_tags=8, domain_closest=9, domain_distance=10, domain_reason=11, domain_score=12, subdomain_detected=13, path_chars=14, path_words=15, subdomain_score=16, protocol_reason=17, protocol_score=18, whois_score=19, whois_reason=20, whois_nameservers=21, whois_registrar=22, ssl_score=23, ssl_message=24
         scan_data = cursor.execute("SELECT * FROM history WHERE id = ?", (exist[0],)).fetchone()
@@ -287,7 +315,7 @@ def scan():
         jaccard_similarity = (scan_data[26], scan_data[27], scan_data[28])
 
         #Link scan ID with user ID.
-        cursor.execute("INSERT INTO user_history_link (user_id, history_id) VALUES (?, ?)", (session["user_id"], exist[0]))
+        cursor.execute("""INSERT INTO user_history_link (user_id, history_id) VALUES (?, ?)""", (session["user_id"], exist[0]))
 
         #Store current scan ID in session to be used for PDF function.
         session["curr_scan_id"] = exist[0]
@@ -352,6 +380,7 @@ def export_history():
         scans.append(scan_data)
 
     #close connection.
+    Connection.commit()
     Connection.close()
 
     #Creates an empty in-memory text file.
@@ -479,8 +508,22 @@ def stats():
     if "user_id" not in session:
         return redirect("/")
     
+    #Initailize connection.
+    Connection = sqlite3.connect("DB/users.db")
+    cursor = Connection.cursor()
+
+    now = datetime.datetime.now()
+    year_month = now.strftime("%Y-%m")
+
+    statss = cursor.execute("SELECT * FROM statistics WHERE date = ?", (year_month,)).fetchone()
+
+    Connection.commit()
+    Connection.close()
+
+    return render_template ("stats.html", stats=statss, date=year_month)
     
-        
+
+    
 #Run the Flask application.
 #With debug mode on to get more info about errors/bugs.
 if __name__ == "__main__":
