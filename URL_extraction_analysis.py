@@ -29,29 +29,38 @@ def decompose_url(url):
         domain = remainder
 
 
-    #splits the path from the query parameters if there is a "?" in the path.
+    #Splits the path from the query parameters if there is a "?" in the path.
     if "?" in path:
         path_parts = path.split("?")
         path = path_parts[0]
         query = path_parts[1]
 
-    #split domain into its components.
+    #Split domain into its components.
     domain_parts = domain.split(".")
 
     #The top-level domain (TLD) is typically the last part of the domain ("com", "org", "net").
-    tld = domain_parts[-1]
-
-    #if domain_parts conatisn 2 or more parts, the main domain is the second to last part ("example" in "www.example.com").
-    if len(domain_parts) >= 2:
-        main_domain = domain_parts[-2]
+    #However, some domains have country code TLDs (ccTLDs) that consist of two parts (e.g., "co.uk", "com.au").
+    #If the domain has 4 or more parts, it gets the last two parts as the TLD. Otherwise, it gets the last part as the TLD.
+    if len(domain_parts) >= 4:
+        tld = ".".join(domain_parts[-2:])
     else:
-        #If the domain does not have at least two parts, meaning there is no main domain, it can be set to an empty string or handle it as needed. 
-        #example: localhost or IP address.
-        main_domain = ""
-        tld = ""
+        tld = domain_parts[-1]
 
-    #extract subdomains (all parts except the last two).
-    subdomains = domain_parts[:-2]
+    #Previus part was only disigned for domains with 2 or 3 parts, but some domains have more parts.
+    #New code handles domains with 4 or more parts.
+    #If the domain has 4 or more parts, the main domain is the second part and the subdomains are all parts before that ("example" in "www.example.co.uk").
+    if len(domain_parts) >= 4:
+        main_domain = domain_parts[1]
+        subdomains = domain_parts[:1]
+
+    #Elif domain_parts conatisn 2 or more parts, the main domain is the second to last part ("example" in "www.example.com").
+    elif len(domain_parts) >= 2:
+        main_domain = domain_parts[-2]
+        subdomains = domain_parts[:-2]
+    else:
+        main_domain = ""
+        subdomains = []
+        tld = ""
 
     #store extracted components in a dictionary for easy access.
     result = {"protocol": protocol,"domain": domain,"main_domain": main_domain,
@@ -137,7 +146,7 @@ def levenshteins_distance_domain(domain):
     score = 0
     if lowest_distance == 0:
         reason = "Exact match to known domain"
-        score = score - 20
+        score = score - 40
     elif lowest_distance <= 2:
         reason = "Likely Impersonation"
         score = score + 40

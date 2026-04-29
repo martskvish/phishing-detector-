@@ -89,6 +89,7 @@ def home():
     #If user is not logged in, send them back to login page
     if 'user_id' not in session:
         return redirect("/")
+    
     #Renders the home.html template and passes the username and email as variables to the template.
     return render_template("home.html", username=session["username"])
 
@@ -276,6 +277,7 @@ def scan():
         year_month = now.strftime("%Y-%m")
         
         #Updtae each month's statistics in the table, coresponding to ovrall classification of the scans performed in the month by all users.
+        #Unique constraint on date field allows use of "INSERT OR IGNORE" to insert a new row for the month if it doesn't exist.
         cursor.execute("""INSERT OR IGNORE INTO statistics (date) VALUES (?)""", (year_month,))
         if overall_classification == "Safe":
             cursor.execute("""UPDATE statistics SET Safe = Safe + 1 WHERE date = ?""", (year_month,))
@@ -512,17 +514,20 @@ def stats():
     Connection = sqlite3.connect("DB/users.db")
     cursor = Connection.cursor()
 
+    #Get current year and month of fetching stats for.
     now = datetime.datetime.now()
     year_month = now.strftime("%Y-%m")
 
+    #Select all statistics for the current month and year.
     statss = cursor.execute("SELECT * FROM statistics WHERE date = ?", (year_month,)).fetchone()
+
+    #Implement way to show stats for past months.
 
     Connection.commit()
     Connection.close()
 
+    #Render the stats.html template and pass the fetched data. 
     return render_template ("stats.html", stats=statss, date=year_month)
-    
-
     
 #Run the Flask application.
 #With debug mode on to get more info about errors/bugs.

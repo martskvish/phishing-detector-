@@ -23,7 +23,7 @@ To improve efficiency, the system stores previous scan results in the SQL databa
 If a URL has been scanned recently, the program retrieves stored results instead of repeating all phishing detection algorithms.
 However, because website content may change over time, a cache expiry period of 3 days is used. After this period, the system performs a fresh scan and updates the database.
 '''
-
+#Table statistics will have date as a unique field to store monthly statistics of scans. 
 cmd2 = """CREATE TABLE IF NOT EXISTS history (id INTEGER PRIMARY KEY AUTOINCREMENT, URL, TIMEDATE, TOTALSCORE, CLASSIFICATION,
            html_text_score INTEGER, html_text_keywords TEXT, html_tag_score	INTEGER, html_detected_tags	TEXT, domain_closest TEXT,
             domain_distance REAL, domain_reason TEXT, domain_score INTEGER, subdomain_detected	TEXT, path_chars TEXT, path_words TEXT,
@@ -31,7 +31,7 @@ cmd2 = """CREATE TABLE IF NOT EXISTS history (id INTEGER PRIMARY KEY AUTOINCREME
             whois_nameservers TEXT, whois_registrar TEXT, ssl_score INTEGER, ssl_message TEXT, Visible_Text TEXT, jaccard_similarity REAL, jaccard_reason TEXT, jaccard_score INTEGER)"""
 cmd3 = """CREATE TABLE IF NOT EXISTS user_history_link (id INTEGER PRIMARY KEY AUTOINCREMENT, 
            user_id INTEGER NOT NULL, history_id INTEGER NOT NULL)"""
-cmd4 = """CREATE TABLE IF NOT EXISTS statistics (id INTEGER PRIMARY KEY AUTOINCREMENT, date, Safe INTEGER DEFAULT 0, Low_Risk INTEGER DEFAULT 0, Suspicious INTEGER DEFAULT 0, Likely Phishing INTEGER DEFAULT 0, Phishing INTEGER DEFAULT 0)"""
+cmd4 = """CREATE TABLE IF NOT EXISTS statistics (id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT UNIQUE, Safe INTEGER DEFAULT 0, Low_Risk INTEGER DEFAULT 0, Suspicious INTEGER DEFAULT 0, Likely Phishing INTEGER DEFAULT 0, Phishing INTEGER DEFAULT 0)"""
 
 cursor.execute(cmd2)
 cursor.execute(cmd3)
