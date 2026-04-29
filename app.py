@@ -414,6 +414,7 @@ def export_PDF():
 
     #Write scan report to PDF, using the defined functions to format the text and make it more visually appealing.
     #ln(2) adds a line break of 2 units to create space between sections.
+    #If text is too long, multi_cell() wraps it onto the next line.
     pdf.set_font("Arial", style="B", size=16)
     pdf.multi_cell(0, 10, txt=f"Scan Report for {decompose_urld}", align='C')
     pdf.set_font("Arial", size=11)
@@ -472,7 +473,14 @@ def export_PDF():
     pdf_bytes = pdf.output(dest='S').encode('latin-1')
     return send_file(io.BytesIO(pdf_bytes),mimetype="application/pdf",as_attachment=True,download_name=f"{session["username"]}_scan_report.pdf")
     
-
+@app.route("/stats", methods=["GET"])
+def stats():
+    #Check user's login.
+    if "user_id" not in session:
+        return redirect("/")
+    
+    
+        
 #Run the Flask application.
 #With debug mode on to get more info about errors/bugs.
 if __name__ == "__main__":

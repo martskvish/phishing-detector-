@@ -31,9 +31,11 @@ cmd2 = """CREATE TABLE IF NOT EXISTS history (id INTEGER PRIMARY KEY AUTOINCREME
             whois_nameservers TEXT, whois_registrar TEXT, ssl_score INTEGER, ssl_message TEXT, Visible_Text TEXT, jaccard_similarity REAL, jaccard_reason TEXT, jaccard_score INTEGER)"""
 cmd3 = """CREATE TABLE IF NOT EXISTS user_history_link (id INTEGER PRIMARY KEY AUTOINCREMENT, 
            user_id INTEGER NOT NULL, history_id INTEGER NOT NULL)"""
+cmd4 = """CREATE TABLE IF NOT EXISTS statistics (id INTEGER PRIMARY KEY AUTOINCREMENT, date, Safe INTEGER, Low_Risk INTEGER, Suspicious INTEGER, Likely Phishing INTEGER, Phishing INTEGER)"""
 
 cursor.execute(cmd2)
 cursor.execute(cmd3)
+cursor.execute(cmd4)
 
 connection.commit()
 connection.close()

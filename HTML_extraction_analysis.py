@@ -21,6 +21,7 @@ def extraxt_html_content(url):
 
 def extract_text_from_html(unfiltered):
 
+    #If the input is None(HTML content could not be retrieved) return an empty string to prevent errors in later processing.
     if unfiltered is None:
         return ""
 
@@ -171,10 +172,9 @@ def HTML_tag_analyser(HTML_raw, full_domain):
 
     return score, matched_tags
 
-
 def HTML_code_jaccard(HTML_raw, simmilar, levenshteins_distance_domain):
 
-    #optimisation (only run heavy checks when needed)
+    #optimisation (only run heavy checks when domain is similar enough to known site)
     if levenshteins_distance_domain >= 1 and levenshteins_distance_domain <= 4:  
         
         jaccard_similarity = 0.0
@@ -228,7 +228,7 @@ def HTML_code_jaccard(HTML_raw, simmilar, levenshteins_distance_domain):
     
     else:
         jaccard_similarity = 0.0
-        reasson = "Domain name eithersame or not similar enough to known sites for HTML comparison to be meaningful"
+        reasson = "Domain name either same or not similar enough to known sites for HTML comparison to be meaningful"
         score = 0 
 
         return jaccard_similarity, reasson, score

@@ -1,6 +1,5 @@
 import sqlite3
 
-
 def decompose_url(url):
 
     #initializes variables to store different components of the URL.
@@ -60,6 +59,7 @@ def decompose_url(url):
 
     return result
 
+#Each function extracts specific parts of the DB thus one function is not necessary anymore. 
 ''''
 def SQL_URL_database_extraction():
    
