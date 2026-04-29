@@ -17,6 +17,14 @@
 <body>
 
     <h1>Scan Statistics for {{ date }}</h1>
+
+    <main>
+        <h2>Load data from another month</h2>
+        <form action="/stats" method="post">
+            <input type="text" name="month" placeholder="Enter Month to display (YYYY-MM)" required>
+            <button type="submit">Load data</button>
+        </form>
+    </main>
 <body>
 <body>
 <script>

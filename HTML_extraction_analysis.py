@@ -88,14 +88,18 @@ def HTMLtext_analysis(HTML_text, keywords):
 
     return score, matched_keywords
 
-def HTML_tag_analyser(HTML_raw, full_domain): 
+def HTML_tag_analyser(HTML_raw, full_domain):
 
-    #Only get SLD (second level domain) 
+    #Check if HTML_raw is NONE to stop program from crashing.
+    if HTML_raw is None:
+        return 0, []
+
+    #Only get SLD (second level domain)
     parts = full_domain.split(".")
     domain = parts[-2]
-    
+
     #Convert the raw HTML string into a structured, searchable tree object which is stored in filtered.
-    #Explain how parsing works. 
+    #Explain how parsing works.
     filtered = BeautifulSoup(HTML_raw.text, 'html.parser')
 
     #Initialise score and matched_tags variable
@@ -173,6 +177,10 @@ def HTML_tag_analyser(HTML_raw, full_domain):
     return score, matched_tags
 
 def HTML_code_jaccard(HTML_raw, simmilar, levenshteins_distance_domain):
+
+    #Error handling if previus functions retrun NONE this if will detect that.
+    if HTML_raw is None or simmilar is None:
+        return 0.0, "Unable to retrieve HTML content", 0
 
     #optimisation (only run heavy checks when domain is similar enough to known site)
     if levenshteins_distance_domain >= 1 and levenshteins_distance_domain <= 4:  

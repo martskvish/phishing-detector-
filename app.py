@@ -8,6 +8,7 @@
 #io module used to create file-like objects in memeory. no need to create a physical file on disk.
 #fpdf for generating pdf report of scans.
 
+from calendar import month
 from multiprocessing.dummy import connection
 
 from flask import Flask, render_template, request, redirect, send_file, session
@@ -504,7 +505,7 @@ def export_PDF():
     pdf_bytes = pdf.output(dest='S').encode('latin-1')
     return send_file(io.BytesIO(pdf_bytes),mimetype="application/pdf",as_attachment=True,download_name=f"{session["username"]}_scan_report.pdf")
     
-@app.route("/stats", methods=["GET"])
+@app.route("/stats", methods=["GET", "POST"])
 def stats():
     #Check user's login.
     if "user_id" not in session:
@@ -514,14 +515,18 @@ def stats():
     Connection = sqlite3.connect("DB/users.db")
     cursor = Connection.cursor()
 
-    #Get current year and month of fetching stats for.
-    now = datetime.datetime.now()
-    year_month = now.strftime("%Y-%m")
+    month = request.args.get("month")
+
+    if month:
+        year_month = month
+    else:
+        #Get current year and month of fetching stats for.
+        now = datetime.datetime.now()
+        year_month = now.strftime("%Y-%m")
 
     #Select all statistics for the current month and year.
     statss = cursor.execute("SELECT * FROM statistics WHERE date = ?", (year_month,)).fetchone()
 
-    #Implement way to show stats for past months.
 
     Connection.commit()
     Connection.close()
