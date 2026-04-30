@@ -300,7 +300,8 @@ def scan():
         cursor = Connection.cursor()
 
         #If URL has already been scanned, fetch scan data from database and use it to render the scan.html template.
-        #id=0, URL=1, TIMEDATE=2, TOTALSCORE=3, CLASSIFICATION=4, html_text_score=5, html_text_keywords=6, html_tag_score=7, html_detected_tags=8, domain_closest=9, domain_distance=10, domain_reason=11, domain_score=12, subdomain_detected=13, path_chars=14, path_words=15, subdomain_score=16, protocol_reason=17, protocol_score=18, whois_score=19, whois_reason=20, whois_nameservers=21, whois_registrar=22, ssl_score=23, ssl_message=24
+        #id=0, URL=1, TIMEDATE=2, TOTALSCORE=3, CLASSIFICATION=4, html_text_score=5, html_text_keywords=6, html_tag_score=7, html_detected_tags=8, domain_closest=9, domain_distance=10, domain_reason=11, domain_score=12, subdomain_detected=13, path_chars=14, path_words=15, subdomain_score=16, 
+        #protocol_reason=17, protocol_score=18, whois_score=19, whois_reason=20, whois_nameservers=21, whois_registrar=22, ssl_score=23, ssl_message=24, Visible_Text=25, jaccard_similarity=26, jaccard_reason=27, jaccard_score=28, ip_address=29, ip_country=30, ip_city=31
         scan_data = cursor.execute("SELECT * FROM history WHERE id = ?", (exist[0],)).fetchone()
         decompose_urld = decompose_url(scan_data[1])
         HTML_text_content = scan_data[25]
@@ -315,7 +316,7 @@ def scan():
         total_score = scan_data[3]
         overall_classification = scan_data[4]
         jaccard_similarity = (scan_data[26], scan_data[27], scan_data[28])
-        IP_address = (scan_data[29], scan_data[30], scan_data[31])
+        IP_address, IP_country, IP_city = scan_data[29], scan_data[30], scan_data[31]
 
         #Link scan ID with user ID.
         cursor.execute("""INSERT INTO user_history_link (user_id, history_id) VALUES (?, ?)""", (session["user_id"], exist[0]))
@@ -327,10 +328,10 @@ def scan():
     Connection.commit()
     Connection.close()
 
-    #Renders the scan.html template and passes the decomposed URL, visible text, distance of domain, suspicious words and characters as variables.
+    #Renders the scan.html template and passes the decomposed URL, visible text, distance of domain, suspicious words, characters as variables and etc.
     return render_template("scan.html", url=decompose_urld, visible_text=HTML_text_content, HTMLtext_analysis_score=HTML_sus_score, suswords=HTML_sus_keywords,
                            detected_tags=HTML_DETECTED_TAGS, domain_distance = Domain_distance, path_subdomain_analysis = URL_path_subdomain_analysis, total_score=total_score,
-                           protocol=protocol_score, web_classification = overall_classification, whois_reassons_score = WHOIS, SSL_reassons_score = SSL_certificate, jaccard_similarity = jaccard_similarity, ip_address_info=IP_address)
+                           protocol=protocol_score, web_classification = overall_classification, whois_reassons_score = WHOIS, SSL_reassons_score = SSL_certificate, jaccard_similarity = jaccard_similarity, ip_address_info=(IP_address, IP_country, IP_city))
 
 @app.route("/history",  methods=["GET"])
 def scan_history():
@@ -521,24 +522,32 @@ def stats():
     Connection = sqlite3.connect("DB/users.db")
     cursor = Connection.cursor()
 
-    month = request.form.get("month")
+    if request.method == "POST":
+        month = request.form.get("month")
+        year = request.form.get("year")
 
-    if month:
-        year_month = month
+        year_month = f"{year}-{month}"
+
+        statss = cursor.execute("SELECT * FROM statistics WHERE date = ?", (year_month,)).fetchone()
+        
+        if statss == None:
+            now = datetime.datetime.now()
+            year_month_now = now.strftime("%Y-%m")
+            statss = cursor.execute("SELECT * FROM statistics WHERE date = ?", (year_month_now,)).fetchone()
+
+            year_month = year_month_now
+
+        #Commit and close connection.
+        Connection.commit()
+        Connection.close()
+
+        #Render the stats.html template and pass the fetched data. 
     else:
-        #Get current year and month of fetching stats for.
-        now = datetime.datetime.now()
-        year_month = now.strftime("%Y-%m")
+        statss = None
+        year_month = None
 
-    #Select all statistics for the current month and year.
-    statss = cursor.execute("SELECT * FROM statistics WHERE date = ?", (year_month,)).fetchone()
-
-    #Commit and close connection.
-    Connection.commit()
-    Connection.close()
-
-    #Render the stats.html template and pass the fetched data. 
-    return render_template ("stats.html", stats=statss, date=year_month)
+    years = ["2024", "2025", "2026"]
+    return render_template ("stats.html", stats=statss, date=year_month, year=years)
     
 #Run the Flask application.
 #With debug mode on to get more info about errors/bugs.
