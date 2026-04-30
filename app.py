@@ -522,32 +522,24 @@ def stats():
     Connection = sqlite3.connect("DB/users.db")
     cursor = Connection.cursor()
 
-    if request.method == "POST":
-        month = request.form.get("month")
-        year = request.form.get("year")
+    #Fetch all date columns from the statistics table.
+    dates = cursor.execute("SELECT date FROM statistics").fetchall()
+    
+    #Turn outputed tuple into list for better handling.
+    result = []
+    for index in dates:
+        result.append(index[0])
 
-        year_month = f"{year}-{month}"
+    #Get the current date selected and load stats for that month.
+    year = request.form.get("year")
+    statss = cursor.execute("SELECT * FROM statistics WHERE date = ?", (year,)).fetchone()
+    year_month = year
+    
+    #Commit and close connection.
+    Connection.commit()
+    Connection.close()
 
-        statss = cursor.execute("SELECT * FROM statistics WHERE date = ?", (year_month,)).fetchone()
-        
-        if statss == None:
-            now = datetime.datetime.now()
-            year_month_now = now.strftime("%Y-%m")
-            statss = cursor.execute("SELECT * FROM statistics WHERE date = ?", (year_month_now,)).fetchone()
-
-            year_month = year_month_now
-
-        #Commit and close connection.
-        Connection.commit()
-        Connection.close()
-
-        #Render the stats.html template and pass the fetched data. 
-    else:
-        statss = None
-        year_month = None
-
-    years = ["2024", "2025", "2026"]
-    return render_template ("stats.html", stats=statss, date=year_month, year=years)
+    return render_template ("stats.html", stats=statss, date=year_month, year=result)
     
 #Run the Flask application.
 #With debug mode on to get more info about errors/bugs.
