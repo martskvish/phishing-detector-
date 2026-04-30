@@ -28,7 +28,8 @@ cmd2 = """CREATE TABLE IF NOT EXISTS history (id INTEGER PRIMARY KEY AUTOINCREME
            html_text_score INTEGER, html_text_keywords TEXT, html_tag_score	INTEGER, html_detected_tags	TEXT, domain_closest TEXT,
             domain_distance REAL, domain_reason TEXT, domain_score INTEGER, subdomain_detected	TEXT, path_chars TEXT, path_words TEXT,
             subdomain_score INTEGER, protocol_reason TEXT, protocol_score INTEGER, whois_score INTEGER, whois_reason TEXT, 
-            whois_nameservers TEXT, whois_registrar TEXT, ssl_score INTEGER, ssl_message TEXT, Visible_Text TEXT, jaccard_similarity REAL, jaccard_reason TEXT, jaccard_score INTEGER)"""
+            whois_nameservers TEXT, whois_registrar TEXT, ssl_score INTEGER, ssl_message TEXT, Visible_Text TEXT, jaccard_similarity REAL, jaccard_reason TEXT, jaccard_score INTEGER,
+            ip_address TEXT, ip_country TEXT, ip_city TEXT)"""
 cmd3 = """CREATE TABLE IF NOT EXISTS user_history_link (id INTEGER PRIMARY KEY AUTOINCREMENT, 
            user_id INTEGER NOT NULL, history_id INTEGER NOT NULL)"""
 cmd4 = """CREATE TABLE IF NOT EXISTS statistics (id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT UNIQUE, Safe INTEGER DEFAULT 0, Low_Risk INTEGER DEFAULT 0, Suspicious INTEGER DEFAULT 0, Likely Phishing INTEGER DEFAULT 0, Phishing INTEGER DEFAULT 0)"""

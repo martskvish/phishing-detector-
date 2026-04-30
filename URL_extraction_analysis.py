@@ -1,4 +1,7 @@
 import sqlite3
+import socket
+from urllib import response
+import requests
 
 def decompose_url(url):
 
@@ -244,3 +247,18 @@ def analyse_subdomain_path(subdomain, path, query):
     #Close connection and return detected elements
     connection.close()
     return detected_subdomains, detected_chars, detected_words_path, total_score
+
+def host_location(domain):
+    
+    #Get ip addres of the domain using socket library.
+    ip = socket.gethostbyname(domain)
+
+    #Get location info of the IP address using ipinfo.io API.
+    response = requests.get(f"https://ipinfo.io/{ip}/json")  
+    data = response.json()
+    
+    #Breakdown location info from JSON response.
+    country = data.get("country")
+    city = data.get("city")
+
+    return ip, country, city
