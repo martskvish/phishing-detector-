@@ -71,7 +71,7 @@ def login_verify():
             return redirect("/")
 
 #Define route for logout
-#When triggered clears session
+#When triggered clears session to remove all stored user data and redirect user to the login page. 
 @app.route("/logout")
 def logout():
     session.clear()
@@ -235,6 +235,7 @@ def scan():
         total_score = HTML_sus_score + HTML_DETECTED_TAGS[0] + URL_path_subdomain_analysis[3] + protocol_score[1] + Domain_distance[3] + WHOIS[0] + SSL_certificate[0] + jaccard_similarity[2] 
 
         #Compare score to thresholds and classify website.
+        #Define color variables to improve visual appeal of the scan resul page.
         overall_classification = ""
         if total_score <= 0:
             overall_classification = "Safe"
@@ -262,14 +263,14 @@ def scan():
         cursor.execute("""INSERT INTO history (URL, TIMEDATE, TOTALSCORE, CLASSIFICATION, html_text_score, html_text_keywords,
                         html_tag_score, html_detected_tags, domain_closest, domain_distance, domain_reason, domain_score,
                         subdomain_detected, path_chars, path_words, subdomain_score, protocol_reason, protocol_score,
-                        whois_score, whois_reason, whois_nameservers, whois_registrar, ssl_score, ssl_message, Visible_Text, jaccard_similarity, jaccard_reason, jaccard_score, ip_address, ip_country, ip_city)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        whois_score, whois_reason, whois_nameservers, whois_registrar, ssl_score, ssl_message, Visible_Text, jaccard_similarity, jaccard_reason, jaccard_score, ip_address, ip_country, ip_city, color)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                         (url, time, total_score, overall_classification, HTML_sus_score, ", ".join((str(t) for t in HTML_sus_keywords)),
                         HTML_DETECTED_TAGS[0], ", ".join(str(t) for t in HTML_DETECTED_TAGS[1]), Domain_distance[0], Domain_distance[1], Domain_distance[2],
                         Domain_distance[3], ", ".join(str(x) for x in URL_path_subdomain_analysis[0]), ", ".join(str(x) for x in URL_path_subdomain_analysis[1]), ", ".join(str(x) for x in URL_path_subdomain_analysis[2]),
                         URL_path_subdomain_analysis[3], protocol_score[0], protocol_score[1],
                         WHOIS[0], ", ".join(str(r) for r in WHOIS[1]), ", ".join(str(r) for r in WHOIS[2]), WHOIS[3], SSL_certificate[0], SSL_certificate[1], HTML_text_content, jaccard_similarity[0], jaccard_similarity[1], jaccard_similarity[2],
-                        IP_address, IP_country, IP_city))
+                        IP_address, IP_country, IP_city, colour))
         scan_id = cursor.lastrowid
 
         #Get current year and month to store in statistics table.
@@ -317,6 +318,7 @@ def scan():
         overall_classification = scan_data[4]
         jaccard_similarity = (scan_data[26], scan_data[27], scan_data[28])
         IP_address, IP_country, IP_city = scan_data[29], scan_data[30], scan_data[31]
+        colour = scan_data[32]
 
         #Link scan ID with user ID.
         cursor.execute("""INSERT INTO user_history_link (user_id, history_id) VALUES (?, ?)""", (session["user_id"], exist[0]))
@@ -331,7 +333,8 @@ def scan():
     #Renders the scan.html template and passes the decomposed URL, visible text, distance of domain, suspicious words, characters as variables and etc.
     return render_template("scan.html", url=decompose_urld, visible_text=HTML_text_content, HTMLtext_analysis_score=HTML_sus_score, suswords=HTML_sus_keywords,
                            detected_tags=HTML_DETECTED_TAGS, domain_distance = Domain_distance, path_subdomain_analysis = URL_path_subdomain_analysis, total_score=total_score,
-                           protocol=protocol_score, web_classification = overall_classification, whois_reassons_score = WHOIS, SSL_reassons_score = SSL_certificate, jaccard_similarity = jaccard_similarity, ip_address_info=(IP_address, IP_country, IP_city))
+                           protocol=protocol_score, web_classification = overall_classification, whois_reassons_score = WHOIS, SSL_reassons_score = SSL_certificate, jaccard_similarity = jaccard_similarity, 
+                           ip_address_info=(IP_address, IP_country, IP_city,), web_classification_color=colour)
 
 @app.route("/history",  methods=["GET"])
 def scan_history():
@@ -525,7 +528,7 @@ def stats():
     #Fetch all date columns from the statistics table.
     dates = cursor.execute("SELECT date FROM statistics").fetchall()
     
-    #Turn outputed tuple into list for better handling.
+    #Turn outputed tuple into list for better string handling.
     result = []
     for index in dates:
         result.append(index[0])
@@ -541,6 +544,14 @@ def stats():
 
     return render_template ("stats.html", stats=statss, date=year_month, year=result)
     
+@app.route("/settings", methods=["GET"])
+def settings():
+    #Check user's login.
+    if "user_id" not in session:
+        return redirect("/")
+    
+    return render_template("settings.html")
+
 #Run the Flask application.
 #With debug mode on to get more info about errors/bugs.
 if __name__ == "__main__":

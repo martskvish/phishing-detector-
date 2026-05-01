@@ -250,15 +250,21 @@ def analyse_subdomain_path(subdomain, path, query):
 
 def host_location(domain):
     
-    #Get ip addres of the domain using socket library.
-    ip = socket.gethostbyname(domain)
+    try:
+        #Get ip addres of the domain using socket library.
+        ip = socket.gethostbyname(domain)
 
-    #Get location info of the IP address using ipinfo.io API.
-    response = requests.get(f"https://ipinfo.io/{ip}/json")  
-    data = response.json()
-    
-    #Breakdown location info from JSON response.
-    country = data.get("country")
-    city = data.get("city")
+        #Get location info of the IP address using ipinfo.io API.
+        response = requests.get(f"https://ipinfo.io/{ip}/json")  
+        data = response.json()
+        
+        #Breakdown location info from JSON response.
+        country = data.get("country")
+        city = data.get("city")
+    #Detect error.
+    except Exception as e:
+        ip = None
+        country = None
+        city = None
 
     return ip, country, city
