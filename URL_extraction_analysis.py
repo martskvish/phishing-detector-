@@ -123,6 +123,7 @@ def levenshteins_distance_domain(domain):
                 array[0][j] = j
 
 
+        #Show visualisation of levenshteins distance calculation for debugging purposes.
         #Loop through every value in the 2D array, skip the borders which are alreday filled.
         #If same indexed characters from both strings are same copy previous value.
         #Else get lowest value from top, top left and left neighbours and plus 1.
