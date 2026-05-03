@@ -302,7 +302,7 @@ def scan():
 
         #If URL has already been scanned, fetch scan data from database and use it to render the scan.html template.
         #id=0, URL=1, TIMEDATE=2, TOTALSCORE=3, CLASSIFICATION=4, html_text_score=5, html_text_keywords=6, html_tag_score=7, html_detected_tags=8, domain_closest=9, domain_distance=10, domain_reason=11, domain_score=12, subdomain_detected=13, path_chars=14, path_words=15, subdomain_score=16, 
-        #protocol_reason=17, protocol_score=18, whois_score=19, whois_reason=20, whois_nameservers=21, whois_registrar=22, ssl_score=23, ssl_message=24, Visible_Text=25, jaccard_similarity=26, jaccard_reason=27, jaccard_score=28, ip_address=29, ip_country=30, ip_city=31
+        #protocol_reason=17, protocol_score=18, whois_score=19, whois_reason=20, whois_nameservers=21, whois_registrar=22, ssl_score=23, ssl_message=24, Visible_Text=25, jaccard_similarity=26, jaccard_reason=27, jaccard_score=28, ip_address=29, ip_country=30, ip_city=31, colour=32
         scan_data = cursor.execute("SELECT * FROM history WHERE id = ?", (exist[0],)).fetchone()
         decompose_urld = decompose_url(scan_data[1])
         HTML_text_content = scan_data[25]
