@@ -294,6 +294,9 @@ def scan():
         #Link scan ID with user ID in user_history_link table.
         cursor.execute("""INSERT INTO user_history_link (user_id, history_id) VALUES (?, ?)""", (session["user_id"], scan_id))
 
+        Connection.commit()
+        Connection.close()
+
         session["curr_scan_id"] = scan_id
     else:
         #Initializes connection to database.
@@ -544,13 +547,50 @@ def stats():
 
     return render_template ("stats.html", stats=statss, date=year_month, year=result)
     
-@app.route("/settings", methods=["GET"])
+@app.route("/settings", methods=["GET", "POST"])
 def settings():
     #Check user's login.
     if "user_id" not in session:
         return redirect("/")
-    
-    return render_template("settings.html")
+
+
+    #If user submits form to change password.
+    if request.method == "POST":
+
+        #Get old and new passwords from form.
+        old_password = request.form.get("old_password")
+        new_password = request.form.get("new_password")
+
+        #Initalize connection. 
+        Connection = sqlite3.connect("DB/users.db")
+        cursor = Connection.cursor()
+
+        #Fetch user's current password hash from database to verify old password.
+        user_password = cursor.execute("SELECT password FROM users WHERE id = ?", (session["user_id"],)).fetchone()
+        Connection.close()
+
+        #Check if the provided old password matches the stored password hash using check_password_hash.
+        if check_password_hash(user_password[0], old_password):
+            new_password_hash = generate_password_hash(new_password)
+
+            #Connect to DB.
+            Connection = sqlite3.connect("DB/users.db")
+            cursor = Connection.cursor()
+
+            #Update the user's password in the database with the new password hash.
+            cursor.execute("UPDATE users SET password = ? WHERE id = ?", (new_password_hash, session["user_id"]))
+
+            #Commit the changes and close the connection.
+            Connection.commit()
+            Connection.close()
+
+    #Retrun settings.html with approptiate message. 
+            return render_template("settings.html", message = "Password updated successfully", username = session["username"])
+        else:
+            return render_template("settings.html", message = "Incorrect current password. Try again.", username = session["username"])
+
+    return render_template("settings.html", username = session["username"])
+
 
 #Run the Flask application.
 #With debug mode on to get more info about errors/bugs.
