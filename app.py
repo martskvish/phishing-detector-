@@ -329,9 +329,9 @@ def scan():
         #Store current scan ID in session to be used for PDF function.
         session["curr_scan_id"] = exist[0]
 
-    #Commit and update database.
-    Connection.commit()
-    Connection.close()
+        #Commit and update database.
+        Connection.commit()
+        Connection.close()
 
     #Renders the scan.html template and passes the decomposed URL, visible text, distance of domain, suspicious words, characters as variables and etc.
     return render_template("scan.html", url=decompose_urld, visible_text=HTML_text_content, HTMLtext_analysis_score=HTML_sus_score, suswords=HTML_sus_keywords,
@@ -442,15 +442,39 @@ def export_PDF():
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
 
+    
+    #Error: UnicodeEncodeError: 'latin-1' codec can't encode character '\u2018' in position 83: ordinal not in range(256)
+    #Unicode chars can't be encoded with latin-1
+    def clean_text(text):
+        #Check if text is empty.
+        if text is None:
+            return ""
+
+        #Define characters that may cause problem FPDF.
+        #problematic unicode char : replacment.
+        #Used ai to generate possible problematic chars
+        replacements = {"\u2018": "'", "\u2019": "'", "\u201c": '"',"\u201d": '"', "\u2013": "-", "\u2014": "-", "\u2026": "...", }
+
+        #Turn text into string
+        text = str(text)
+
+        #Loop through items in dictionary.
+        #Replace problematic characters.
+        for old, new in replacements.items():
+            text = text.replace(old, new)
+
+        #Make text safer by replacing unsuppoerted chars insted of causing error. 
+        return text.encode("latin-1", "replace").decode("latin-1")
+
     #Function to turn titles into bold and bigger font.
     def heading(text):
-        pdf.set_font("Arial", style="B", size=13)
-        pdf.multi_cell(0, 8, txt=text)
+        pdf.set_font("Arial", style = "B", size=13)
+        pdf.multi_cell(0, 8, txt=clean_text(text))
 
     #Function for normal text, set font back to normal and smaller size.
     def row(text):
         pdf.set_font("Arial", size=11)
-        pdf.multi_cell(0, 7, txt=text)
+        pdf.multi_cell(0, 7, txt=clean_text(text))
 
     #Write scan report to PDF, using the defined functions to format the text and make it more visually appealing.
     #ln(2) adds a line break of 2 units to create space between sections.
@@ -514,8 +538,10 @@ def export_PDF():
     heading("Visible Text:")
     row(f"{HTML_text_content}")
 
+    
+    #Create PDF and convert it inot bytes so flask can send it as downlaodable file. 
+    pdf_bytes = pdf.output(dest="S").encode("latin-1")
     #Pass the generated PDF as bytes to send file, set the file type and name for download. 
-    pdf_bytes = pdf.output(dest='S').encode('latin-1')
     return send_file(io.BytesIO(pdf_bytes),mimetype="application/pdf",as_attachment=True,download_name=f"{session["username"]}_scan_report.pdf")
     
 @app.route("/stats", methods=["GET", "POST"])
