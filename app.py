@@ -458,7 +458,7 @@ def export_PDF():
         #Turn text into string
         text = str(text)
 
-        #Loop through items in dictionary.
+        #Loop through items in dictionary, whilie difining key and item.
         #Replace problematic characters.
         for old, new in replacements.items():
             text = text.replace(old, new)
