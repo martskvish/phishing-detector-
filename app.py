@@ -393,7 +393,7 @@ def export_history():
     Connection.commit()
     Connection.close()
 
-    #Creates an empty in-memory text file.
+    #Creates an empty in-memory text file. (preserve memory usage, initaly was planing to save file on disk and than delete after download).
     #write coresponding id,url,result,date to each row of the CSV file for each scan in scans list.
     output = io.StringIO()
     writer = csv.writer(output)
@@ -538,7 +538,6 @@ def export_PDF():
     heading("Visible Text:")
     row(f"{HTML_text_content}")
 
-    
     #Create PDF and convert it inot bytes so flask can send it as downlaodable file. 
     pdf_bytes = pdf.output(dest="S").encode("latin-1")
     #Pass the generated PDF as bytes to send file, set the file type and name for download. 
@@ -566,12 +565,25 @@ def stats():
     year = request.form.get("year")
     statss = cursor.execute("SELECT * FROM statistics WHERE date = ?", (year,)).fetchone()
     year_month = year
+
+    #If submit buttun pressed (post method) calculate total scans.
+    #Else if redirected to page (get method) make total NONE. 
+    if request.method == "POST": 
+        
+        #Calculate total amount of scans.
+        #Statss ouptut (1, '2026-04', 7, 2, 1, 0, 0)
+        total = 0 
+        for i in range(2, len(statss)):
+            total = total + int(statss[i])
+
+    else:
+        total = None
     
     #Commit and close connection.
     Connection.commit()
     Connection.close()
 
-    return render_template ("stats.html", stats=statss, date=year_month, year=result)
+    return render_template ("stats.html", stats=statss, date=year_month, year=result, total_scans=total)
     
 @app.route("/settings", methods=["GET", "POST"])
 def settings():
