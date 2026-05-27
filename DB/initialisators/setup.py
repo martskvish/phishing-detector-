@@ -135,6 +135,11 @@ HTML_PHRASES = [
     ('winner',                  'Medium',    6),
     ('prize',                   'High',      8),
     ('you have won',            'High',      8),
+    ('free download',           'Critical', 30),
+    ('free game',               'Critical', 30),
+    ('free subscription',       'Critical', 20),
+    ('free trial',              'Critical', 20),
+
 ]
 
 #Setup

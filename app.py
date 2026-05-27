@@ -31,6 +31,9 @@ load_dotenv("creds.env")
 #Initalizes a flask applicatio and assigns it to the variable app. 
 app = Flask(__name__)
 
+#For keep second copy of scan IDs. 
+current_scan_ids = {}
+
 #Used to sign/encrypt the session cookie stored in the user's browser so it can't be tampered with.
 #Generates a random 32 byte hexadecimal string, making program more secure and less vulnerable to session hijacking.
 app.secret_key = os.getenv("SECRET_KEY")
@@ -191,6 +194,7 @@ def scan():
         #Pass current time and date to time variable.
         #Retrieves the URL from the form data submitted by the user.
         time = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+        yield "data: Starting scan\n\n"
         
 
         Connection = sqlite3.connect("DB/users.db")
@@ -310,6 +314,7 @@ def scan():
             Connection.commit()
             Connection.close()
 
+            current_scan_ids[session["user_id"]] = scan_id
             session["curr_scan_id"] = scan_id
         else:
             #Initializes connection to database.
@@ -341,14 +346,15 @@ def scan():
 
             #Store current scan ID in session to be used for PDF function.
             session["curr_scan_id"] = exist[0]
+            current_scan_ids[session["user_id"]] = int(exist[0])
 
             #Commit and update database.
             Connection.commit()
             Connection.close()
         
         #After the scanning process is complete, yield the URL to be used in the frontend to render the scan results page.
-        yield f"data: {url}\n\n"
-   
+        yield "data: DONE\n\n"
+
     #Stream the output of the scanning process to the frontend in real time using Server-Sent Events (SSE) with the appropriate MIME type for SSE.
     #MIME type "text/event-stream" tells the browser to expect a stream of events, allowing the frontend to update the loading bar.
     return Response(stream_with_context(stream_scan()), mimetype="text/event-stream")
@@ -359,11 +365,19 @@ def scan_result():
     #Check user's session.
     if "user_id" not in session:
         return redirect("/")
-    
-    #Initialize connection and fetch scan data.
+
+    #Initialize connection.
     Connection = sqlite3.connect("DB/users.db")
     cursor = Connection.cursor()
-    scan_data = cursor.execute("SELECT * FROM history WHERE id = ?", (session["curr_scan_id"],)).fetchone()
+
+    #Assign scan ID from session or from current_scan_ids.
+    #If scan ID is not found, redirect to home page.
+    scan_id = session.get("curr_scan_id") or current_scan_ids.get(session["user_id"])
+    if scan_id is None:
+        return redirect("/home")
+    
+    #Fetch scan data.
+    scan_data = cursor.execute("SELECT * FROM history WHERE id = ?", (scan_id,)).fetchone()
     Connection.close()
 
     #Decompose extracted list and return variables.
@@ -383,8 +397,10 @@ def scan_result():
     IP_address, IP_country, IP_city = scan_data[29], scan_data[30], scan_data[31]
     colour = scan_data[32]
 
-    
-
+    return render_template("scan.html", url=decompose_urld, visible_text=HTML_text_content, HTMLtext_analysis_score=HTML_sus_score, suswords=HTML_sus_keywords,
+                           detected_tags=HTML_DETECTED_TAGS, domain_distance = Domain_distance, path_subdomain_analysis = URL_path_subdomain_analysis, total_score=total_score,
+                           protocol=protocol_score, web_classification = overall_classification, whois_reassons_score = WHOIS, SSL_reassons_score = SSL_certificate, jaccard_similarity = jaccard_similarity, 
+                           ip_address_info=(IP_address, IP_country, IP_city,), web_classification_color=colour)
 
 @app.route("/history",  methods=["GET"])
 def scan_history():
