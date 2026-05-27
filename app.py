@@ -8,8 +8,9 @@
 #io module used to create file-like objects in memeory. no need to create a physical file on disk.
 #fpdf for generating pdf report of scans.
 
-from flask import Flask, render_template, request, redirect, send_file, session
+from flask import Flask, render_template, request, redirect, send_file, session, Response, stream_with_context
 import sqlite3
+from httpx import stream
 from werkzeug.security import generate_password_hash, check_password_hash
 import datetime
 from dotenv import load_dotenv
@@ -184,160 +185,206 @@ def scan():
     if "user_id" not in session:
         return redirect("/")
 
-    #Pass current time and date to time variable.
-    #Retrieves the URL from the form data submitted by the user.
-    time = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
     url = request.form.get('url')
 
+    def stream_scan():
+        #Pass current time and date to time variable.
+        #Retrieves the URL from the form data submitted by the user.
+        time = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+        
+
+        Connection = sqlite3.connect("DB/users.db")
+        cursor = Connection.cursor()
+
+        #Check if URL has already been scanned.
+        exist = cursor.execute("SELECT id, TIMEDATE FROM history WHERE URL = ?", (url,)).fetchone()
+        exist_url = False
+
+        Connection.commit()
+        Connection.close()
+
+        #If URL has been scanned before, check if the scan is less than 3 days old. 
+        #If it is set exist_url to True, if not set exist_url to False to trigger a new scan and update the database with new scan data.
+        if exist:
+            scan_time = datetime.datetime.strptime(exist[1], "%d-%m-%Y %H:%M:%S")
+            if (datetime.datetime.now() - scan_time).days < 3:
+                exist_url = True
+            else:
+                exist_url = False
+            
+        if not exist_url:
+
+            #Decompose the URL, extract HTML content, extract visible text from the HTML and analyze the text for suspicious words and analyse HTML tags.
+            #Analyse URL's domain, subdomain with levenshtein distance, path and query for suspicious elements, and check protocol.
+            #Yield allows to send data to the frontend in real time as each step of the scan is completed.
+
+
+            yield "data: Decomposing URL\n\n" 
+            decompose_urld = decompose_url(url)
+            yield "data: Extracting and analysing HTML content\n\n"
+            unfiltered_HTML = extraxt_html_content(url)
+            HTML_text_content = extract_text_from_html(unfiltered_HTML)
+            HTML_sus_score, HTML_sus_keywords = HTMLtext_analysis(HTML_text_content, SQL_HTML_database_extraction())
+            HTML_DETECTED_TAGS = HTML_tag_analyser(unfiltered_HTML, decompose_urld["domain"])
+            yield "data: Analysing domain, subdomain, path and protocol\n\n"
+            Domain_distance = levenshteins_distance_domain(decompose_urld["domain"])
+            URL_path_subdomain_analysis = analyse_subdomain_path(decompose_urld["subdomains"],decompose_urld["path"],decompose_urld["query"])
+            protocol_score = protocol_analysis(decompose_urld["protocol"])
+            yield "data: Performing WHOIS lookup\n\n"
+            WHOIS = WHOIS_lookup(decompose_urld["domain"])
+            yield "data: Analysing SSL certificate\n\n"
+            SSL_certificate = SSL_certificate_analysis(url)
+            yield "data: Extracting IP information\n\n"
+            IP_address, IP_country, IP_city = host_location(decompose_urld["domain"])
+
+            #Check if the closest domain found starts with http:// or https://, if not add https://.
+            if not Domain_distance[0].startswith(("http://", "https://")):
+                closest_domain_url = "https://" + Domain_distance[0]
+            else:
+                closest_domain_url = Domain_distance[0]
+            jaccard_similarity = HTML_code_jaccard(unfiltered_HTML, extract_text_from_html(extraxt_html_content(closest_domain_url)) ,Domain_distance[1])
+
+            #Calculate overall score.
+            total_score = HTML_sus_score + HTML_DETECTED_TAGS[0] + URL_path_subdomain_analysis[3] + protocol_score[1] + Domain_distance[3] + WHOIS[0] + SSL_certificate[0] + jaccard_similarity[2] 
+
+            #Compare score to thresholds and classify website.
+            #Define color variables to improve visual appeal of the scan resul page.
+            overall_classification = ""
+            if total_score <= 0:
+                overall_classification = "Safe"
+                colour = "#22c55e"
+            elif total_score <= 30:
+                overall_classification = "Low Risk"
+                colour = "#84cc16"
+            elif total_score <= 60:
+                overall_classification = "Suspicious"
+                colour = "#ebd218"
+            elif total_score <= 90:
+                overall_classification = "Likely Phishing"
+                colour = "#f97316"
+            else:
+                overall_classification = "Phishing"
+                colour = "#ef4444"
+
+            #As scanning takes time to reduce risk of DB errors open connection later.
+            Connection = sqlite3.connect("DB/users.db")
+            cursor = Connection.cursor()
+
+            #Insert scan data into history table.
+            #", ".join(str(t) for t in HTML_DETECTED_TAGS[1]) is used to convert list of detected HTML tags into a comma saparated stirng. Same applies to other list variables. 
+            #Get the id of scan which was just automaticaly assigned to row to link scan id with user. 
+            cursor.execute("""INSERT INTO history (URL, TIMEDATE, TOTALSCORE, CLASSIFICATION, html_text_score, html_text_keywords,
+                            html_tag_score, html_detected_tags, domain_closest, domain_distance, domain_reason, domain_score,
+                            subdomain_detected, path_chars, path_words, subdomain_score, protocol_reason, protocol_score,
+                            whois_score, whois_reason, whois_nameservers, whois_registrar, ssl_score, ssl_message, Visible_Text, jaccard_similarity, jaccard_reason, jaccard_score, ip_address, ip_country, ip_city, color)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                            (url, time, total_score, overall_classification, HTML_sus_score, ", ".join((str(t) for t in HTML_sus_keywords)),
+                            HTML_DETECTED_TAGS[0], ", ".join(str(t) for t in HTML_DETECTED_TAGS[1]), Domain_distance[0], Domain_distance[1], Domain_distance[2],
+                            Domain_distance[3], ", ".join(str(x) for x in URL_path_subdomain_analysis[0]), ", ".join(str(x) for x in URL_path_subdomain_analysis[1]), ", ".join(str(x) for x in URL_path_subdomain_analysis[2]),
+                            URL_path_subdomain_analysis[3], protocol_score[0], protocol_score[1],
+                            WHOIS[0], ", ".join(str(r) for r in WHOIS[1]), ", ".join(str(r) for r in WHOIS[2]), WHOIS[3], SSL_certificate[0], SSL_certificate[1], HTML_text_content, jaccard_similarity[0], jaccard_similarity[1], jaccard_similarity[2],
+                            IP_address, IP_country, IP_city, colour))
+            scan_id = cursor.lastrowid
+
+            #Get current year and month to store in statistics table.
+            now = datetime.datetime.now()
+            year_month = now.strftime("%Y-%m")
+            
+            #Updtae each month's statistics in the table, coresponding to ovrall classification of the scans performed in the month by all users.
+            #Unique constraint on date field allows use of "INSERT OR IGNORE" to insert a new row for the month if it doesn't exist.
+            cursor.execute("""INSERT OR IGNORE INTO statistics (date) VALUES (?)""", (year_month,))
+            if overall_classification == "Safe":
+                cursor.execute("""UPDATE statistics SET Safe = Safe + 1 WHERE date = ?""", (year_month,))
+            elif overall_classification == "Low Risk":
+                cursor.execute("""UPDATE statistics SET Low_Risk = Low_Risk + 1 WHERE date = ?""", (year_month,))   
+            elif overall_classification == "Suspicious":
+                cursor.execute("""UPDATE statistics SET Suspicious = Suspicious + 1 WHERE date = ?""", (year_month,))   
+            elif overall_classification == "Likely Phishing":
+                cursor.execute("""UPDATE statistics SET Likely Phishing = Likely Phishing + 1 WHERE date = ?""", (year_month,))
+            else:
+                cursor.execute("""UPDATE statistics SET Phishing = Phishing + 1 WHERE date = ?""", (year_month,))
+
+            #Link scan ID with user ID in user_history_link table.
+            cursor.execute("""INSERT INTO user_history_link (user_id, history_id) VALUES (?, ?)""", (session["user_id"], scan_id))
+
+            Connection.commit()
+            Connection.close()
+
+            session["curr_scan_id"] = scan_id
+        else:
+            #Initializes connection to database.
+            Connection = sqlite3.connect("DB/users.db")
+            cursor = Connection.cursor()
+
+            #If URL has already been scanned, fetch scan data from database and use it to render the scan.html template.
+            #id=0, URL=1, TIMEDATE=2, TOTALSCORE=3, CLASSIFICATION=4, html_text_score=5, html_text_keywords=6, html_tag_score=7, html_detected_tags=8, domain_closest=9, domain_distance=10, domain_reason=11, domain_score=12, subdomain_detected=13, path_chars=14, path_words=15, subdomain_score=16, 
+            #protocol_reason=17, protocol_score=18, whois_score=19, whois_reason=20, whois_nameservers=21, whois_registrar=22, ssl_score=23, ssl_message=24, Visible_Text=25, jaccard_similarity=26, jaccard_reason=27, jaccard_score=28, ip_address=29, ip_country=30, ip_city=31, colour=32
+            scan_data = cursor.execute("SELECT * FROM history WHERE id = ?", (exist[0],)).fetchone()
+            decompose_urld = decompose_url(scan_data[1])
+            HTML_text_content = scan_data[25]
+            HTML_sus_score = scan_data[5]
+            HTML_sus_keywords = scan_data[6].split(", ")
+            HTML_DETECTED_TAGS = (scan_data[7], scan_data[8].split(", "))
+            Domain_distance = (scan_data[9], scan_data[10], scan_data[11], scan_data[12])
+            URL_path_subdomain_analysis = (scan_data[13].split(", "), scan_data[14].split(", "), scan_data[15].split(", "), scan_data[16])
+            protocol_score = (scan_data[17], scan_data[18])
+            WHOIS = (scan_data[19], scan_data[20].split(", "), scan_data[21].split(", "), scan_data[22])
+            SSL_certificate = (scan_data[23], scan_data[24])
+            total_score = scan_data[3]
+            overall_classification = scan_data[4]
+            jaccard_similarity = (scan_data[26], scan_data[27], scan_data[28])
+            IP_address, IP_country, IP_city = scan_data[29], scan_data[30], scan_data[31]
+            colour = scan_data[32]
+
+            #Link scan ID with user ID.
+            cursor.execute("""INSERT INTO user_history_link (user_id, history_id) VALUES (?, ?)""", (session["user_id"], exist[0]))
+
+            #Store current scan ID in session to be used for PDF function.
+            session["curr_scan_id"] = exist[0]
+
+            #Commit and update database.
+            Connection.commit()
+            Connection.close()
+        
+        #After the scanning process is complete, yield the URL to be used in the frontend to render the scan results page.
+        yield f"data: {url}\n\n"
+   
+    #Stream the output of the scanning process to the frontend in real time using Server-Sent Events (SSE) with the appropriate MIME type for SSE.
+    #MIME type "text/event-stream" tells the browser to expect a stream of events, allowing the frontend to update the loading bar.
+    return Response(stream_with_context(stream_scan()), mimetype="text/event-stream")
+
+@app.route("/scan_result")
+def scan_result():
+
+    #Check user's session.
+    if "user_id" not in session:
+        return redirect("/")
+    
+    #Initialize connection and fetch scan data.
     Connection = sqlite3.connect("DB/users.db")
     cursor = Connection.cursor()
-
-    #Check if URL has already been scanned.
-    exist = cursor.execute("SELECT id, TIMEDATE FROM history WHERE URL = ?", (url,)).fetchone()
-    exist_url = False
-
-    Connection.commit()
+    scan_data = cursor.execute("SELECT * FROM history WHERE id = ?", (session["curr_scan_id"],)).fetchone()
     Connection.close()
 
-    #If URL has been scanned before, check if the scan is less than 3 days old. 
-    #If it is set exist_url to True, if not set exist_url to False to trigger a new scan and update the database with new scan data.
-    if exist:
-        scan_time = datetime.datetime.strptime(exist[1], "%d-%m-%Y %H:%M:%S")
-        if (datetime.datetime.now() - scan_time).days < 3:
-            exist_url = True
-        else:
-            exist_url = False
-        
-    if not exist_url:
+    #Decompose extracted list and return variables.
+    decompose_urld = decompose_url(scan_data[1])
+    HTML_text_content = scan_data[25]
+    HTML_sus_score = scan_data[5]
+    HTML_sus_keywords = scan_data[6].split(", ")
+    HTML_DETECTED_TAGS = (scan_data[7], scan_data[8].split(", "))
+    Domain_distance = (scan_data[9], scan_data[10], scan_data[11], scan_data[12])
+    URL_path_subdomain_analysis = (scan_data[13].split(", "), scan_data[14].split(", "), scan_data[15].split(", "), scan_data[16])
+    protocol_score = (scan_data[17], scan_data[18])
+    WHOIS = (scan_data[19], scan_data[20].split(", "), scan_data[21].split(", "), scan_data[22])
+    SSL_certificate = (scan_data[23], scan_data[24])
+    total_score = scan_data[3]
+    overall_classification = scan_data[4]
+    jaccard_similarity = (scan_data[26], scan_data[27], scan_data[28])
+    IP_address, IP_country, IP_city = scan_data[29], scan_data[30], scan_data[31]
+    colour = scan_data[32]
 
-        #Decompose the URL, extract HTML content, extract visible text from the HTML and analyze the text for suspicious words and analyse HTML tags.
-        #Analyse URL's domain, subdomain with levenshtein distance, path and query for suspicious elements, and check protocol.
-        decompose_urld = decompose_url(url)
-        unfiltered_HTML = extraxt_html_content(url)
-        HTML_text_content = extract_text_from_html(unfiltered_HTML)
-        HTML_sus_score, HTML_sus_keywords = HTMLtext_analysis(HTML_text_content, SQL_HTML_database_extraction())
-        HTML_DETECTED_TAGS = HTML_tag_analyser(unfiltered_HTML, decompose_urld["domain"])
-        Domain_distance = levenshteins_distance_domain(decompose_urld["domain"])
-        URL_path_subdomain_analysis = analyse_subdomain_path(decompose_urld["subdomains"],decompose_urld["path"],decompose_urld["query"])
-        protocol_score = protocol_analysis(decompose_urld["protocol"])
-        WHOIS = WHOIS_lookup(decompose_urld["domain"])
-        SSL_certificate = SSL_certificate_analysis(url)
-        IP_address, IP_country, IP_city = host_location(decompose_urld["domain"])
+    
 
-        #Check if the closest domain found starts with http:// or https://, if not add https://.
-        if not Domain_distance[0].startswith(("http://", "https://")):
-            closest_domain_url = "https://" + Domain_distance[0]
-        else:
-            closest_domain_url = Domain_distance[0]
-        jaccard_similarity = HTML_code_jaccard(unfiltered_HTML, extract_text_from_html(extraxt_html_content(closest_domain_url)) ,Domain_distance[1])
-
-        #Calculate overall score.
-        total_score = HTML_sus_score + HTML_DETECTED_TAGS[0] + URL_path_subdomain_analysis[3] + protocol_score[1] + Domain_distance[3] + WHOIS[0] + SSL_certificate[0] + jaccard_similarity[2] 
-
-        #Compare score to thresholds and classify website.
-        #Define color variables to improve visual appeal of the scan resul page.
-        overall_classification = ""
-        if total_score <= 0:
-            overall_classification = "Safe"
-            colour = "#22c55e"
-        elif total_score <= 30:
-            overall_classification = "Low Risk"
-            colour = "#84cc16"
-        elif total_score <= 60:
-            overall_classification = "Suspicious"
-            colour = "#ebd218"
-        elif total_score <= 90:
-            overall_classification = "Likely Phishing"
-            colour = "#f97316"
-        else:
-            overall_classification = "Phishing"
-            colour = "#ef4444"
-
-        #As scanning takes time to reduce risk of DB errors open connection later.
-        Connection = sqlite3.connect("DB/users.db")
-        cursor = Connection.cursor()
-
-        #Insert scan data into history table.
-        #", ".join(str(t) for t in HTML_DETECTED_TAGS[1]) is used to convert list of detected HTML tags into a comma saparated stirng. Same applies to other list variables. 
-        #Get the id of scan which was just automaticaly assigned to row to link scan id with user. 
-        cursor.execute("""INSERT INTO history (URL, TIMEDATE, TOTALSCORE, CLASSIFICATION, html_text_score, html_text_keywords,
-                        html_tag_score, html_detected_tags, domain_closest, domain_distance, domain_reason, domain_score,
-                        subdomain_detected, path_chars, path_words, subdomain_score, protocol_reason, protocol_score,
-                        whois_score, whois_reason, whois_nameservers, whois_registrar, ssl_score, ssl_message, Visible_Text, jaccard_similarity, jaccard_reason, jaccard_score, ip_address, ip_country, ip_city, color)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                        (url, time, total_score, overall_classification, HTML_sus_score, ", ".join((str(t) for t in HTML_sus_keywords)),
-                        HTML_DETECTED_TAGS[0], ", ".join(str(t) for t in HTML_DETECTED_TAGS[1]), Domain_distance[0], Domain_distance[1], Domain_distance[2],
-                        Domain_distance[3], ", ".join(str(x) for x in URL_path_subdomain_analysis[0]), ", ".join(str(x) for x in URL_path_subdomain_analysis[1]), ", ".join(str(x) for x in URL_path_subdomain_analysis[2]),
-                        URL_path_subdomain_analysis[3], protocol_score[0], protocol_score[1],
-                        WHOIS[0], ", ".join(str(r) for r in WHOIS[1]), ", ".join(str(r) for r in WHOIS[2]), WHOIS[3], SSL_certificate[0], SSL_certificate[1], HTML_text_content, jaccard_similarity[0], jaccard_similarity[1], jaccard_similarity[2],
-                        IP_address, IP_country, IP_city, colour))
-        scan_id = cursor.lastrowid
-
-        #Get current year and month to store in statistics table.
-        now = datetime.datetime.now()
-        year_month = now.strftime("%Y-%m")
-        
-        #Updtae each month's statistics in the table, coresponding to ovrall classification of the scans performed in the month by all users.
-        #Unique constraint on date field allows use of "INSERT OR IGNORE" to insert a new row for the month if it doesn't exist.
-        cursor.execute("""INSERT OR IGNORE INTO statistics (date) VALUES (?)""", (year_month,))
-        if overall_classification == "Safe":
-            cursor.execute("""UPDATE statistics SET Safe = Safe + 1 WHERE date = ?""", (year_month,))
-        elif overall_classification == "Low Risk":
-            cursor.execute("""UPDATE statistics SET Low_Risk = Low_Risk + 1 WHERE date = ?""", (year_month,))   
-        elif overall_classification == "Suspicious":
-            cursor.execute("""UPDATE statistics SET Suspicious = Suspicious + 1 WHERE date = ?""", (year_month,))   
-        elif overall_classification == "Likely Phishing":
-            cursor.execute("""UPDATE statistics SET Likely Phishing = Likely Phishing + 1 WHERE date = ?""", (year_month,))
-        else:
-            cursor.execute("""UPDATE statistics SET Phishing = Phishing + 1 WHERE date = ?""", (year_month,))
-
-        #Link scan ID with user ID in user_history_link table.
-        cursor.execute("""INSERT INTO user_history_link (user_id, history_id) VALUES (?, ?)""", (session["user_id"], scan_id))
-
-        Connection.commit()
-        Connection.close()
-
-        session["curr_scan_id"] = scan_id
-    else:
-        #Initializes connection to database.
-        Connection = sqlite3.connect("DB/users.db")
-        cursor = Connection.cursor()
-
-        #If URL has already been scanned, fetch scan data from database and use it to render the scan.html template.
-        #id=0, URL=1, TIMEDATE=2, TOTALSCORE=3, CLASSIFICATION=4, html_text_score=5, html_text_keywords=6, html_tag_score=7, html_detected_tags=8, domain_closest=9, domain_distance=10, domain_reason=11, domain_score=12, subdomain_detected=13, path_chars=14, path_words=15, subdomain_score=16, 
-        #protocol_reason=17, protocol_score=18, whois_score=19, whois_reason=20, whois_nameservers=21, whois_registrar=22, ssl_score=23, ssl_message=24, Visible_Text=25, jaccard_similarity=26, jaccard_reason=27, jaccard_score=28, ip_address=29, ip_country=30, ip_city=31, colour=32
-        scan_data = cursor.execute("SELECT * FROM history WHERE id = ?", (exist[0],)).fetchone()
-        decompose_urld = decompose_url(scan_data[1])
-        HTML_text_content = scan_data[25]
-        HTML_sus_score = scan_data[5]
-        HTML_sus_keywords = scan_data[6].split(", ")
-        HTML_DETECTED_TAGS = (scan_data[7], scan_data[8].split(", "))
-        Domain_distance = (scan_data[9], scan_data[10], scan_data[11], scan_data[12])
-        URL_path_subdomain_analysis = (scan_data[13].split(", "), scan_data[14].split(", "), scan_data[15].split(", "), scan_data[16])
-        protocol_score = (scan_data[17], scan_data[18])
-        WHOIS = (scan_data[19], scan_data[20].split(", "), scan_data[21].split(", "), scan_data[22])
-        SSL_certificate = (scan_data[23], scan_data[24])
-        total_score = scan_data[3]
-        overall_classification = scan_data[4]
-        jaccard_similarity = (scan_data[26], scan_data[27], scan_data[28])
-        IP_address, IP_country, IP_city = scan_data[29], scan_data[30], scan_data[31]
-        colour = scan_data[32]
-
-        #Link scan ID with user ID.
-        cursor.execute("""INSERT INTO user_history_link (user_id, history_id) VALUES (?, ?)""", (session["user_id"], exist[0]))
-
-        #Store current scan ID in session to be used for PDF function.
-        session["curr_scan_id"] = exist[0]
-
-        #Commit and update database.
-        Connection.commit()
-        Connection.close()
-
-    #Renders the scan.html template and passes the decomposed URL, visible text, distance of domain, suspicious words, characters as variables and etc.
-    return render_template("scan.html", url=decompose_urld, visible_text=HTML_text_content, HTMLtext_analysis_score=HTML_sus_score, suswords=HTML_sus_keywords,
-                           detected_tags=HTML_DETECTED_TAGS, domain_distance = Domain_distance, path_subdomain_analysis = URL_path_subdomain_analysis, total_score=total_score,
-                           protocol=protocol_score, web_classification = overall_classification, whois_reassons_score = WHOIS, SSL_reassons_score = SSL_certificate, jaccard_similarity = jaccard_similarity, 
-                           ip_address_info=(IP_address, IP_country, IP_city,), web_classification_color=colour)
 
 @app.route("/history",  methods=["GET"])
 def scan_history():
@@ -555,7 +602,7 @@ def stats():
 
     #Fetch all date columns from the statistics table.
     dates = cursor.execute("SELECT date FROM statistics").fetchall()
-    
+     
     #Turn outputed tuple into list for better string handling.
     result = []
     for index in dates:
