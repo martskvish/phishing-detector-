@@ -18,7 +18,7 @@
         #fill {
             height: 100%;
             width: 0%;
-            background-color: #4CAF50;
+            background-color: #20532b;
             transition: width 0.3s ease;
         }
     </style>
@@ -46,54 +46,75 @@
         <p><a href="/logout">Logout</a></p>
     </main>
 
-''' FIX PROGRESS BAR TO FILL BAR ACCORDING TO SCAN PROGRESS '''
     <script>
-        function startScan(e) {
-            e.preventDefault();
-            const url = document.getElementById("url").value;
-            document.getElementById("bar").style.display = "block";
-            document.getElementById("btn").disabled = true;
+function startScan(e) {
+    e.preventDefault();
 
-            let width = 10;
+    const url = document.getElementById("url").value;
 
-            const interval = setInterval(() => {
-                width = Math.min(width + Math.random() * 30, 90);
-                document.getElementById("fill").style.width = width + "%";
-            }, 300);
+    document.getElementById("bar").style.display = "block";
+    document.getElementById("btn").disabled = true;
 
-            fetch("/scan", {
-                method: "POST",
-                headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                body: "url=" + encodeURIComponent(url)
-            })
-            .then(response => {
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
+    const steps = {
+        "Starting scan": 10,
+        "Decomposing URL": 20,
+        "Extracting and analysing HTML content": 40,
+        "Analysing domain, subdomain, path and protocol": 55,
+        "Performing WHOIS lookup": 70,
+        "Analysing SSL certificate": 80,
+        "Extracting IP information": 90,
+        "DONE": 100
+    };
 
-                function read() {
-                    reader.read().then(({ done, value }) => {
-                        if (done) return;
-                        const lines = decoder.decode(value).split("\n").filter(l => l.startsWith("data: "));
-                        lines.forEach(line => {
-                            const msg = line.replace("data: ", "").trim();
+    fetch("/scan", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: "url=" + encodeURIComponent(url)
+    })
+    .then(response => {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
 
-                            console.log("scan message:", msg);
-                            if (msg === "DONE") {
-                                clearInterval(interval);
-                                document.getElementById("fill").style.width = "100%";
-                                setTimeout(() => {
-                                    window.location.href = "/scan_result";
-                                }, 200);
-                                return;
-                            }
-                            document.getElementById("scan-status").textContent = msg;
-                        });
-                        read();
-                    });
-                }
+        function read() {
+            reader.read().then(({ done, value }) => {
+
+                if (done) return;
+
+                const text = decoder.decode(value);
+                const lines = text.split("\n");
+
+                lines.forEach(line => {
+
+                    if (line.startsWith("data: ")) {
+
+                        const msg = line.replace("data: ", "").trim();
+
+                        console.log(msg);
+
+                        document.getElementById("scan-status").textContent = msg;
+
+                        if (steps[msg] !== undefined) {
+                            document.getElementById("fill").style.width = steps[msg] + "%";
+                        }
+
+                        if (msg === "DONE") {
+                            setTimeout(() => {
+                                window.location.href = "/scan_result";
+                            }, 300);
+                            return;
+                        }
+                    }
+                });
+
                 read();
             });
         }
+
+        read();
+    });
+}
     </script>
 </body>
 </html>

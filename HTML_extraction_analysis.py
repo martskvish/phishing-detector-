@@ -182,7 +182,7 @@ def HTML_code_jaccard(HTML_raw, simmilar, levenshteins_distance_domain):
     if HTML_raw is None or simmilar is None:
         return 0.0, "Unable to retrieve HTML content", 0
 
-    #optimisation (only run heavy checks when domain is similar enough to known site)
+    #Optimisation (only run heavy checks when domain is similar enough to known site)
     if levenshteins_distance_domain >= 1 and levenshteins_distance_domain <= 4:  
         
         jaccard_similarity = 0.0

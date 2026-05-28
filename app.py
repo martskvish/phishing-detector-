@@ -70,6 +70,7 @@ def login_verify():
             session["user_id"] = user[0]
             session["username"] = user[1]
             session["email"] = user[2]
+            session["settings_previus_scan_period"] = user[4]
             return redirect("/home")
         else:
             return redirect("/")
@@ -211,7 +212,7 @@ def scan():
         #If it is set exist_url to True, if not set exist_url to False to trigger a new scan and update the database with new scan data.
         if exist:
             scan_time = datetime.datetime.strptime(exist[1], "%d-%m-%Y %H:%M:%S")
-            if (datetime.datetime.now() - scan_time).days < 3:
+            if (datetime.datetime.now() - scan_time).days < session["settings_previus_scan_period"]:
                 exist_url = True
             else:
                 exist_url = False
@@ -222,7 +223,7 @@ def scan():
             #Analyse URL's domain, subdomain with levenshtein distance, path and query for suspicious elements, and check protocol.
             #Yield allows to send data to the frontend in real time as each step of the scan is completed.
 
-
+            yield "data: Starting scan\n\n"
             yield "data: Decomposing URL\n\n" 
             decompose_urld = decompose_url(url)
             yield "data: Extracting and analysing HTML content\n\n"
@@ -246,7 +247,8 @@ def scan():
                 closest_domain_url = "https://" + Domain_distance[0]
             else:
                 closest_domain_url = Domain_distance[0]
-            jaccard_similarity = HTML_code_jaccard(unfiltered_HTML, extract_text_from_html(extraxt_html_content(closest_domain_url)) ,Domain_distance[1])
+            similar_HTML = extraxt_html_content(closest_domain_url)
+            jaccard_similarity = HTML_code_jaccard(unfiltered_HTML,similar_HTML,Domain_distance[1])
 
             #Calculate overall score.
             total_score = HTML_sus_score + HTML_DETECTED_TAGS[0] + URL_path_subdomain_analysis[3] + protocol_score[1] + Domain_distance[3] + WHOIS[0] + SSL_certificate[0] + jaccard_similarity[2] 
@@ -627,8 +629,8 @@ def stats():
     #Get the current date selected and load stats for that month.
     year = request.form.get("year")
     statss = cursor.execute("SELECT * FROM statistics WHERE date = ?", (year,)).fetchone()
-    year_month = year
 
+    
     #If submit buttun pressed (post method) calculate total scans.
     #Else if redirected to page (get method) make total NONE. 
     if request.method == "POST": 
@@ -646,7 +648,7 @@ def stats():
     Connection.commit()
     Connection.close()
 
-    return render_template ("stats.html", stats=statss, date=year_month, year=result, total_scans=total)
+    return render_template ("stats.html", stats=statss, date=year, year=result, total_scans=total)
     
 @app.route("/settings", methods=["GET", "POST"])
 def settings():
@@ -658,37 +660,62 @@ def settings():
     #If user submits form to change password.
     if request.method == "POST":
 
-        #Get old and new passwords from form.
-        old_password = request.form.get("old_password")
-        new_password = request.form.get("new_password")
+        form_type = request.form.get("form_type")
 
-        #Initalize connection. 
-        Connection = sqlite3.connect("DB/users.db")
-        cursor = Connection.cursor()
+        print(form_type)
 
-        #Fetch user's current password hash from database to verify old password.
-        user_password = cursor.execute("SELECT password FROM users WHERE id = ?", (session["user_id"],)).fetchone()
-        Connection.close()
+        if form_type == "change_password":
+            #Get old and new passwords from form.
+            old_password = request.form.get("old_password")
+            new_password = request.form.get("new_password")
 
-        #Check if the provided old password matches the stored password hash using check_password_hash.
-        if check_password_hash(user_password[0], old_password):
-            new_password_hash = generate_password_hash(new_password)
+            #Initalize connection. 
+            Connection = sqlite3.connect("DB/users.db")
+            cursor = Connection.cursor()
+
+            #Fetch user's current password hash from database to verify old password.
+            user_password = cursor.execute("SELECT password FROM users WHERE id = ?", (session["user_id"],)).fetchone()
+            Connection.close()
+
+            #Check if the provided old password matches the stored password hash using check_password_hash.
+            if check_password_hash(user_password[0], old_password):
+                new_password_hash = generate_password_hash(new_password)
+
+                #Connect to DB.
+                Connection = sqlite3.connect("DB/users.db")
+                cursor = Connection.cursor()
+
+                #Update the user's password in the database with the new password hash.
+                cursor.execute("UPDATE users SET password = ? WHERE id = ?", (new_password_hash, session["user_id"]))
+
+                #Commit the changes and close the connection.
+                Connection.commit()
+                Connection.close()
+
+        #Retrun settings.html with approptiate message. 
+                return render_template("settings.html", message = "Password updated successfully", username = session["username"])
+            else:
+                return render_template("settings.html", message = "Incorrect current password. Try again.", username = session["username"])
+            
+        elif form_type == "previous_scan_period":
+
+            #Get new scan period from form.
+            new_scan_period = request.form.get("new_scan_period")
+
 
             #Connect to DB.
             Connection = sqlite3.connect("DB/users.db")
             cursor = Connection.cursor()
 
-            #Update the user's password in the database with the new password hash.
-            cursor.execute("UPDATE users SET password = ? WHERE id = ?", (new_password_hash, session["user_id"]))
+            #Update the user's preferred scan period in the database.
+            cursor.execute("UPDATE users SET settings_previous_scan_period = ? WHERE id = ?", (new_scan_period, session["user_id"]))
 
-            #Commit the changes and close the connection.
+            #Commit and close the connection.
             Connection.commit()
             Connection.close()
 
-    #Retrun settings.html with approptiate message. 
-            return render_template("settings.html", message = "Password updated successfully", username = session["username"])
-        else:
-            return render_template("settings.html", message = "Incorrect current password. Try again.", username = session["username"])
+            #Update local session variable.
+            session["settings_previus_scan_period"] = int(new_scan_period)
 
     return render_template("settings.html", username = session["username"])
 
