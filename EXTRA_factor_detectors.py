@@ -3,10 +3,13 @@
 #requests are used to retrive and send requests to websites 
 #requests.exceptions import specific errors types to detect specific errors after atempt to retrive SSL certificate.
 
+from http.client import FOUND
+
 import whois
 from datetime import datetime, timezone
 import requests
 from requests.exceptions import SSLError, ConnectionError
+from URL_extraction_analysis import decompose_url
 
 def WHOIS_lookup(domain):
     try:
@@ -141,3 +144,74 @@ def SSL_certificate_analysis(url):
         #Catch any other unexpected errors that may occur during the SSL certificate analysis. 
         return 0, "Error checking SSL certificate (0)"
     
+def Openphish_API():
+    #https://openphish.com/feed.txt stores a list of known phishing URLs that is updated every 12 hours.
+    #Get the current date and time to track when the feed was last updated.
+    #Open a text file to store the phishing URLs from Openphish feed.
+    #Read all lines from the text file. 
+    time_now =datetime.now()
+    DB = open("DB\initialisators\phis_url.txt", "r") 
+    Lines = DB.readlines()
+
+    first_line = Lines[0].strip()
+    stored_time = datetime.strptime(first_line, "%Y-%m-%d %H:%M:%S")
+
+    #Check if time exists.
+    #Convert to seconds.
+    current_seconds = time_now.timestamp()
+    stored_seconds = stored_time.timestamp()
+
+    DB.close()
+    #12 hours = 43200 seconds.
+    if current_seconds >= stored_seconds + 43200:
+        print("Refresh feed needed")
+
+        try:
+            response = requests.get("https://openphish.com/feed.txt", timeout=5)
+
+            if response.status_code == 200:
+
+
+                #Update first line with new time.
+                Lines[0] = time_now.strftime("%Y-%m-%d %H:%M:%S") + "\n"
+                
+                #Open file in append mode to add new phishing URLs at the end of file.
+                #Add previously stored phishing ULRs.
+                #Add the phishing URLs from the Openphish feed to the text file.
+                DB = open("DB\initialisators\phis_url.txt", "w")
+                DB.writelines(Lines) 
+                DB.write(response.text) 
+                DB.close()
+
+        except Exception as error:  
+            print(f"Error fetching Openphish feed: {error}")
+            return None    
+    else:
+        print("Feed still valid")
+   
+def COMP_DB_URL(current_url_domain):
+
+    #Open the text file that contains phishing URLs with read mode.
+    #skip first line
+    DB = open("DB\initialisators\phis_url.txt", "r")
+    next(DB)  
+
+    #Strip to remove /n.
+    #Compare the domain of current URL with the domains of phishing URls.
+    #If match is found, break the loop and return +100 score and reason. If no match is found, return 0 score and reason.
+    for line in DB:
+        FOUND = False
+        url = line.strip()
+
+        decomposed_phish_url = decompose_url(url)
+        if decomposed_phish_url["domain"] == current_url_domain:
+            FOUND = True
+            break
+    DB.close()
+
+    if FOUND:
+        return 100, "Domain found in Openphish feed (+100)"
+    else:
+        return 0, "Domain not found in Openphish feed (0)"
+
+

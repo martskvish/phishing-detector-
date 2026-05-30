@@ -55,16 +55,8 @@ function startScan(e) {
     document.getElementById("bar").style.display = "block";
     document.getElementById("btn").disabled = true;
 
-    const steps = {
-        "Starting scan": 10,
-        "Decomposing URL": 20,
-        "Extracting and analysing HTML content": 40,
-        "Analysing domain, subdomain, path and protocol": 55,
-        "Performing WHOIS lookup": 70,
-        "Analysing SSL certificate": 80,
-        "Extracting IP information": 90,
-        "DONE": 100
-    };
+    const steps = { "Starting scan": 10, "Decomposing URL": 20, "Extracting and analysing HTML content": 40, "Analysing domain, subdomain, path and protocol": 55,
+     "Performing WHOIS lookup": 60,"Analysing SSL certificate": 70,"Extracting IP information": 80,  "comparing domain with phishing domain list":90, "DONE": 100};
 
     fetch("/scan", {
         method: "POST",

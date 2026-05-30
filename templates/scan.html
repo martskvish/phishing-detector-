@@ -68,10 +68,14 @@
         <p><strong>Country:</strong>{{ ip_address_info[1] }}</p>
         <p><strong>City:</strong>{{ ip_address_info[2] }}</p>
 
+        <h2>In phishing database</h2>
+        <p><strong>{{ "Yes (score +100)" if IN_database else "No" }}</strong></p>
+
         <h2>Total Score</h2>
         <p><strong>{{ total_score }}</strong></p>
         <h2>Classification</h2>
         <p><strong>{{ web_classification }}</strong></p>
+
         <a href="/home">Go Back</a>
     </main>
 </body>
