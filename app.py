@@ -69,7 +69,7 @@ def login_verify():
             session["user_id"] = user[0]
             session["username"] = user[1]
             session["email"] = user[2]
-            session["settings_previus_scan_period"] = user[4]
+            session["settings_previous_scan_period"] = user[4]
             return redirect("/home")
         else:
             return redirect("/")
@@ -213,7 +213,7 @@ def scan():
         #If it is set exist_url to True, if not set exist_url to False to trigger a new scan and update the database with new scan data.
         if exist:
             scan_time = datetime.datetime.strptime(exist[1], "%d-%m-%Y %H:%M:%S")
-            if (datetime.datetime.now() - scan_time).days < session["settings_previus_scan_period"]:
+            if (datetime.datetime.now() - scan_time).days < session["settings_previous_scan_period"]:
                 exist_url = True
             else:
                 exist_url = False
@@ -461,15 +461,17 @@ def export_history():
     cursor = Connection.cursor()
     history_ids = cursor.execute("SELECT history_id FROM user_history_link WHERE user_id = ?", (session["user_id"],)).fetchall()
 
+    print(history_ids)
     #Turn outputed tuple from sql query to list.
     #Fetch all scan data corresponding to user's scan IDs.
+    #Only append first five items from scan.data.
     result = []
     scans = []
     for index in history_ids:
         result.append(index[0])
     for i in result:    
         scan_data = cursor.execute("SELECT * FROM history WHERE id = ?", (i,)).fetchone()
-        scans.append(scan_data)
+        scans.append((scan_data[0], scan_data[1], scan_data[2], scan_data[3], scan_data[4]))
 
     #close connection.
     Connection.commit()
@@ -712,7 +714,7 @@ def settings():
                 Connection.commit()
                 Connection.close()
 
-        #Retrun settings.html with approptiate message. 
+            #Retrun settings.html with approptiate message. 
                 return render_template("settings.html", message = "Password updated successfully", username = session["username"])
             else:
                 return render_template("settings.html", message = "Incorrect current password. Try again.", username = session["username"])
@@ -735,7 +737,7 @@ def settings():
             Connection.close()
 
             #Update local session variable.
-            session["settings_previus_scan_period"] = int(new_scan_period)
+            session["settings_previous_scan_period"] = int(new_scan_period)
 
     return render_template("settings.html", username = session["username"])
 

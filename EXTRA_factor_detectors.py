@@ -2,9 +2,6 @@
 #datetime and timezones are used verify and check registration and expiration dates of domain.
 #requests are used to retrive and send requests to websites 
 #requests.exceptions import specific errors types to detect specific errors after atempt to retrive SSL certificate.
-
-from http.client import FOUND
-
 import whois
 from datetime import datetime, timezone
 import requests
@@ -156,7 +153,6 @@ def Openphish_API():
     first_line = Lines[0].strip()
     stored_time = datetime.strptime(first_line, "%Y-%m-%d %H:%M:%S")
 
-    #Check if time exists.
     #Convert to seconds.
     current_seconds = time_now.timestamp()
     stored_seconds = stored_time.timestamp()
@@ -213,5 +209,3 @@ def COMP_DB_URL(current_url_domain):
         return 100, "Domain found in Openphish feed (+100)"
     else:
         return 0, "Domain not found in Openphish feed (0)"
-
-
