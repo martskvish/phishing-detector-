@@ -7,8 +7,8 @@
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-    <h1 style="color: rgb(0, 0, 0);">Authentication Required</h1>
-    <p style="color: rgb(0, 0, 0);">Please enter the one-time password sent to your email:</p>
+    <h1 style="color: rgb(255, 255, 255);">Authentication Required</h1>
+    <p style="color: rgb(255, 255, 255);">Please enter the one-time password sent to your email:</p>
     {% if error %}
             <p style="color: red;">{{ error }}</p>
     {% endif %}

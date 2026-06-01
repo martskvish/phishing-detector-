@@ -1,6 +1,5 @@
 import sqlite3
 import socket
-from urllib import response
 import requests
 
 def decompose_url(url):
@@ -89,36 +88,49 @@ def SQL_URL_database_extraction():
 '''
 def levenshteins_distance_domain(domain):
 
+    #----------IMPORTANT----------
+    #In Project.docx explain lavenshteins distance.
 
-    #In Project.docx explain lavenshteins distance
-
-    # Remove www. prefix if presen
+    # Remove www. prefix if present.
     if domain.startswith("www."):
         domain = domain[4:]
         
     len_domain = len(domain)  
     
-    #initializes variables
+    #Initializes variables.
     lowest_distance = float('inf')
     closest_domain = ""
 
+    #Open the certified domains file and read lines.
+    CERT_domain_file = open("DB/initialisators/domain.txt", "r")
+    Lines = CERT_domain_file.readlines()
+    CERT_domain_file.close()
+
+
+    #Removed code that connects to cert_domain.db and fetches domains, as we are now using a text file to store the certified domains for simplicity and efficiency.
+    '''
     #Connect to a SQLite database names cert_domain.db and use cursor to interact with DB.
     connection = sqlite3.connect("DB/cert_domain.db")
     cursor = connection.cursor()
     cursor.execute("SELECT * FROM domains")
+    '''
 
+    for row in Lines:
+        #Strip to remove \n (next line indicator) and \t (tab indicator). 
+        #(747     bandcamp.com) --> ['276', "media-amazon.com"] --> "media-amazon.com"
+        row = row.strip()
+        row = row.split("\t")[1]
 
-    for row in cursor.fetchall():
-        len_cert_domain = len(row[1])
+        len_cert_domain = len(row)
         
-        #Create 2D array with first colume and row representing characters from each string
+        #Create 2D array with first colume and row representing characters from each string.
         array = [[0] * (len_domain + 1) for _ in range(len_cert_domain + 1)]
 
-        #In first column insert numbers one growing by 1 representing each character 
+        #In first column insert numbers one growing by 1 representing each character.
         for i in range(len_cert_domain +1):
                 array[i][0] = i
 
-        #In first row insert numbers one growing by 1 representing each character
+        #In first row insert numbers one growing by 1 representing each character.
         for j in range(len_domain + 1):
                 array[0][j] = j
 
@@ -129,7 +141,7 @@ def levenshteins_distance_domain(domain):
         #Else get lowest value from top, top left and left neighbours and plus 1.
         for i in range(1, len_cert_domain + 1):
             for j in range(1, len_domain + 1):
-                        if domain[j-1] == row[1][i-1]:
+                        if domain[j-1] == row[i-1]:
                             array[i][j]= array[i-1][j-1]
                         else:
                             array[i][j] = min(array[i-1][j-1], array[i-1][j], array[i][j-1]) + 1
@@ -142,11 +154,7 @@ def levenshteins_distance_domain(domain):
             lowest_distance = distance
             closest_domain = row[1]
 
-
-    #Close connection and return distance and closest domain.
-    connection.close()
-
-    # Classify distance
+    #Classify distance.
     score = 0
     if lowest_distance == 0:
         reason = "Exact match to known domain"

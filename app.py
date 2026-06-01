@@ -196,7 +196,6 @@ def scan():
         time = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
         yield "data: Starting scan\n\n"
         
-
         Connection = sqlite3.connect("DB/users.db")
         cursor = Connection.cursor()
 
@@ -249,12 +248,11 @@ def scan():
             yield "data: Comparing domain with phishing domain list\n\n"
             COMP_DB_URL_result = COMP_DB_URL(decompose_urld["domain"])
 
+            #Set IN_database flag as True if domain was found in the phishing database.
             if COMP_DB_URL_result[0] == 100:
                 IN_database = True
             else:
                 IN_database = False
-
-
 
             #Check if the closest domain found starts with http:// or https://, if not add https://.
             if not Domain_distance[0].startswith(("http://", "https://")):
@@ -677,7 +675,6 @@ def settings():
     #Check user's login.
     if "user_id" not in session:
         return redirect("/")
-
 
     #If user submits form to change password.
     if request.method == "POST":
