@@ -7,7 +7,6 @@ from datetime import datetime, timezone
 import requests
 from requests.exceptions import SSLError, ConnectionError
 from URL_extraction_analysis import decompose_url
-
 def WHOIS_lookup(domain):
     try:
         #Get raw text of domain's infomation, than python-whois parses that raw text into a Python object
@@ -150,6 +149,7 @@ def Openphish_API():
     DB = open("DB\initialisators\phis_url.txt", "r") 
     Lines = DB.readlines()
 
+    #Get the first line of the text file, which contains the last time the phishing url database was updated. 
     first_line = Lines[0].strip()
     stored_time = datetime.strptime(first_line, "%Y-%m-%d %H:%M:%S")
 

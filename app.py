@@ -503,7 +503,7 @@ def export_PDF():
 
     #Extract scan data from for the scan ID that is stored in session.
     #Decompose extracted list into variables for easier use later on.
-    scan_data = cursor.execute("SELECT * FROM history WHERE id = ?", (session["curr_scan_id"],)).fetchone()
+    scan_data = cursor.execute("SELECT * FROM history WHERE id = ?", (current_scan_ids[session["user_id"]],)).fetchone()
     decompose_urld = decompose_url(scan_data[1])
     HTML_text_content = scan_data[25]
     HTML_sus_score = scan_data[5]
@@ -735,8 +735,31 @@ def settings():
 
             #Update local session variable.
             session["settings_previous_scan_period"] = int(new_scan_period)
+                
 
     return render_template("settings.html", username = session["username"])
+
+@app.route("/delete_account", methods=["POST"])
+def delete_account():
+    #Check user's login.
+    if "user_id" not in session:
+        return redirect("/")
+    
+    confirmed = request.args.get("confirmed")
+
+    if confirmed == "true":
+        
+        connect = sqlite3.connect("DB/users.db")
+        cursor = connect.cursor()
+
+        cursor.execute("DELETE FROM users WHERE id = ?", (session["user_id"],))
+        cursor.execute("DELETE FROM user_history_link WHERE user_id = ?", (session["user_id"],))
+
+
+        connect.commit()
+        connect.close()
+
+        return render_template("login.html", message = "Account deleted successfully.")
 
 
 #Run the Flask application.

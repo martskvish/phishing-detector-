@@ -270,6 +270,7 @@ def host_location(domain):
         #Breakdown location info from JSON response.
         country = data.get("country")
         city = data.get("city")
+    
     #Detect error.
     except Exception as e:
         ip = None

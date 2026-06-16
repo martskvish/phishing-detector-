@@ -37,9 +37,20 @@
         </form>
 
         <a href="/home">Back to Home</a>
-       
 
+        <h2>Delete Account</h2>
 
+        <button onclick="confirmDelete()">Delete Account</button>
+        
+        <script>
+        function confirmDelete() {
+            if (confirm("Delete your account?")) {
+                window.location.href = "/delete_account?confirmed=true";
+            }
+        }
+        </script>
+
+    
 
     </main>
 </body>

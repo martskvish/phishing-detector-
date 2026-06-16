@@ -9,6 +9,11 @@
 <body>
     <main>
         <img src="{{ url_for('static', filename='loginLogo.png') }}" alt="Login Logo">
+
+        {{% if message %}
+            <p style="color: red;">{{ message }}</p>
+        {{% endif %}}
+
         <h2>Login</h2>
         <form action="/login_verify" method="post">
             <input type="email" name="email" placeholder="Enter Email" required>
