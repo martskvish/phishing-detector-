@@ -739,7 +739,7 @@ def settings():
 
     return render_template("settings.html", username = session["username"])
 
-@app.route("/delete_account", methods=["POST"])
+@app.route("/delete_account", methods=["POST", "GET"])
 def delete_account():
     #Check user's login.
     if "user_id" not in session:
