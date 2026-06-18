@@ -36,10 +36,22 @@
         
         </form>
 
-        <a href="/home">Back to Home</a>
-
+        
+        <h2>Generate API Key</h2>
+        <form action="/settings" method="POST">
+            <button type="submit" name="form_type" value="generate_api_key">Generate API Key</button>
+        {% if message_api %}
+            <p style="color: red;">{{ message_api }}</p>
+            {% if key %}
+                <p>Your API Key: {{ key }}</p>
+            {% endif %}
+        {% else %}
+            <p>Click generate to display or create an API key.</p>
+        {% endif %}
+        </form>
         <h2>Delete Account</h2>
 
+        
         <button onclick="confirmDelete()">Delete Account</button>
         
         <script>
@@ -51,7 +63,8 @@
         </script>
 
     
-
+        <br><br><br>
+        <a href="/home">Back to Home</a>
     </main>
 </body>
 </html>

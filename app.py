@@ -7,6 +7,7 @@
 #csv for ecporting scan history to a CSV file.
 #io module used to create file-like objects in memeory. no need to create a physical file on disk.
 #fpdf for generating pdf report of scans.
+#secrets to generate random API key for use. 
 
 from flask import Flask, render_template, request, redirect, send_file, session, Response, stream_with_context
 import sqlite3
@@ -17,6 +18,7 @@ import os
 import csv
 import io
 from fpdf import FPDF
+import secrets
 
 #Import funtions from extractor files
 from HTML_extraction_analysis import extraxt_html_content, extract_text_from_html, HTMLtext_analysis, SQL_HTML_database_extraction, HTML_tag_analyser, HTML_code_jaccard
@@ -675,8 +677,8 @@ def settings():
     #Check user's login.
     if "user_id" not in session:
         return redirect("/")
-
-    #If user submits form to change password.
+    
+    #If user submits form.
     if request.method == "POST":
 
         form_type = request.form.get("form_type")
@@ -735,8 +737,33 @@ def settings():
 
             #Update local session variable.
             session["settings_previous_scan_period"] = int(new_scan_period)
-                
+        
+        elif form_type == "generate_api_key":
 
+        #-------------------ADD HASHING AND ENCRYPTION OF API KEY-------------------#
+
+            #Connect to DB.
+            Connection = sqlite3.connect("DB/users.db")
+            cursor = Connection.cursor()    
+
+            #Fetch the user's existing API key.
+            API_key = cursor.execute("SELECT API_KEY FROM users WHERE id = ?", (session["user_id"],)).fetchone()
+
+            #If API key exists, return it to the user.
+            #If not, generate a new API key, and store it in the database. 
+            if API_key[0] is not None:
+                print(API_key[0])
+                return render_template("settings.html", username = session["username"], message_api = "API key already generated", key = API_key[0])
+            else: 
+                API_key = secrets.token_hex(36)
+                cursor.execute("UPDATE users SET API_KEY = ? WHERE id = ?", (API_key, session["user_id"]))
+
+            #Close conncetion to database. 
+            Connection.commit()
+            Connection.close()
+            
+            return render_template("settings.html", username = session["username"] ,message_api = "API key has been generated", key = API_key)
+    
     return render_template("settings.html", username = session["username"])
 
 @app.route("/delete_account", methods=["POST", "GET"])
@@ -745,8 +772,10 @@ def delete_account():
     if "user_id" not in session:
         return redirect("/")
     
+    #Get user's response from the confirmation prompt in the frontend.
     confirmed = request.args.get("confirmed")
 
+    #If user confirms account deletion, delete the user's account and associated history data from the database for privacy and security reasons.
     if confirmed == "true":
         
         connect = sqlite3.connect("DB/users.db")
