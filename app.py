@@ -755,6 +755,9 @@ def settings():
                 print(API_key[0])
                 return render_template("settings.html", username = session["username"], message_api = "API key already generated", key = API_key[0])
             else: 
+
+                #Generate a new API key using secrets.
+                #Store the generated API key in the database for the user.
                 API_key = secrets.token_hex(36)
                 cursor.execute("UPDATE users SET API_KEY = ? WHERE id = ?", (API_key, session["user_id"]))
 
