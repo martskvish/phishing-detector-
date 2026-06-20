@@ -32,12 +32,23 @@
             <input type="number" id="new_scan_period" name="new_scan_period" placeholder="Enter number of days" required><br><br>
 
             <button type="submit" name="form_type" value="previous_scan_period">Update previous scan period</button>
-        
-        
         </form>
 
         
         <h2>Generate API Key</h2>
+        <h3>API Features</h3>
+
+            <ul>
+                <li>Phishing detection</li>
+                <li>SSL analysis</li>
+                <li>WHOIS lookup</li>
+                <li>IP location</li>
+                <li>JSON response</li>
+                <li>In phishing database or not</li>
+            </ul>
+        {% if usage_remaining %}
+            <p>API usage remaining: {{ usage_remaining }} out of 100</p>
+        {% endif %}
         <form action="/settings" method="POST">
             <button type="submit" name="form_type" value="generate_api_key">Generate API Key</button>
         {% if message_api %}

@@ -9,7 +9,7 @@
 #fpdf for generating pdf report of scans.
 #secrets to generate random API key for use. 
 
-from flask import Flask, render_template, request, redirect, send_file, session, Response, stream_with_context
+from flask import Flask, render_template, request, redirect, send_file, session, Response, stream_with_context, jsonify
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
 import datetime
@@ -181,7 +181,6 @@ def verify_user():
     
     return render_template("auth.html")
         
-
 #Defines a route for the /scan URL that accepts POST requests.
 @app.route("/scan", methods=["POST"])
 def scan():
@@ -330,6 +329,7 @@ def scan():
             Connection.commit()
             Connection.close()
 
+            #Store current scan ID in session and current_scan_ids dictionary to be used for PDF export function.
             current_scan_ids[session["user_id"]] = scan_id
             session["curr_scan_id"] = scan_id
         else:
@@ -339,7 +339,7 @@ def scan():
 
             #If URL has already been scanned, fetch scan data from database and use it to render the scan.html template.
             #id=0, URL=1, TIMEDATE=2, TOTALSCORE=3, CLASSIFICATION=4, html_text_score=5, html_text_keywords=6, html_tag_score=7, html_detected_tags=8, domain_closest=9, domain_distance=10, domain_reason=11, domain_score=12, subdomain_detected=13, path_chars=14, path_words=15, subdomain_score=16, 
-            #protocol_reason=17, protocol_score=18, whois_score=19, whois_reason=20, whois_nameservers=21, whois_registrar=22, ssl_score=23, ssl_message=24, Visible_Text=25, jaccard_similarity=26, jaccard_reason=27, jaccard_score=28, ip_address=29, ip_country=30, ip_city=31, colour=32
+            #protocol_reason=17, protocol_score=18, whois_score=19, whois_reason=20, whois_nameservers=21, whois_registrar=22, ssl_score=23, ssl_message=24, Visible_Text=25, jaccard_similarity=26, jaccard_reason=27, jaccard_score=28, ip_address=29, ip_country=30, ip_city=31, colour=32, IN_database=33
             scan_data = cursor.execute("SELECT * FROM history WHERE id = ?", (exist[0],)).fetchone()
             decompose_urld = decompose_url(scan_data[1])
             HTML_text_content = scan_data[25]
@@ -413,7 +413,7 @@ def scan_result():
     jaccard_similarity = (scan_data[26], scan_data[27], scan_data[28])
     IP_address, IP_country, IP_city = scan_data[29], scan_data[30], scan_data[31]
     colour = scan_data[32]
-    #As SQLITE stores Boolean as 1/0 convetion of value is needed. 
+    #As SQLITE stores Boolean as 1/0 conversion of value is needed. 
     IN_database = scan_data[33]
 
     return render_template("scan.html", url=decompose_urld, visible_text=HTML_text_content, HTMLtext_analysis_score=HTML_sus_score, suswords=HTML_sus_keywords,
@@ -527,9 +527,8 @@ def export_PDF():
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
 
-    
-    #Error: UnicodeEncodeError: 'latin-1' codec can't encode character '\u2018' in position 83: ordinal not in range(256)
-    #Unicode chars can't be encoded with latin-1
+    #Error: UnicodeEncodeError: 'latin-1' codec can't encode character '\u2018' in position 83: ordinal not in range(256).
+    #Unicode chars can't be encoded with latin-1.
     def clean_text(text):
         #Check if text is empty.
         if text is None:
@@ -537,10 +536,10 @@ def export_PDF():
 
         #Define characters that may cause problem FPDF.
         #problematic unicode char : replacment.
-        #Used ai to generate possible problematic chars
+        #Used ai to generate possible problematic chars.
         replacements = {"\u2018": "'", "\u2019": "'", "\u201c": '"',"\u201d": '"', "\u2013": "-", "\u2014": "-", "\u2026": "...", }
 
-        #Turn text into string
+        #Turn text into string.
         text = str(text)
 
         #Loop through items in dictionary, whilie difining key and item.
@@ -665,12 +664,75 @@ def stats():
 
     else:
         total = None
-    
+
+    '''
+    cursor.execute("""SELECT ip_country, COUNT(*) FROM history WHERE classification = 'Phishing' GROUP BY ip_country """)
+    country_counts = cursor.fetchall()
+    '''
     #Commit and close connection.
     Connection.commit()
     Connection.close()
 
     return render_template ("stats.html", stats=statss, date=year, year=result, total_scans=total)
+
+@app.route("/api/scan", methods=["POST"])
+def api_scan():
+    
+    #Get API key and URL from the request JSON payload.
+    api_key = request.json.get("api_key")
+    url = request.json.get("url")
+
+    time_now = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+    time_to_reset = datetime.datetime.now() + datetime.timedelta(hours=12)
+
+    if not api_key or not url:
+        return jsonify({"error": "Missing API key or URL"}), 400
+    
+    #Get user ID associated with the provided API key from the database.
+    connection = sqlite3.connect("DB/users.db")
+    con = connection.cursor()
+    user = con.execute("SELECT id FROM users WHERE API_KEY = ?",(api_key,)).fetchone()
+    connection.close()
+
+    #Check if the provided API key exists in the database.
+    if user is None:
+        return jsonify({"error": "Invalid API key"}), 401
+    
+    #Run the scan.
+    decompose_urld = decompose_url(url)
+    whois_result = WHOIS_lookup(decompose_urld["domain"])
+    ssl_result = SSL_certificate_analysis(url)
+    ip_address, ip_country, ip_city = host_location(decompose_urld["domain"])
+    in_database_result = COMP_DB_URL(decompose_urld["domain"])
+
+    #Update API usage statistics.
+    connection = sqlite3.connect("DB/users.db")
+    con = connection.cursor()
+    
+    #Extraxt the API usage reset time from database. 
+    reset_time = con.execute("SELECT API_USE_RESET FROM users WHERE API_KEY = ?", (api_key,)).fetchone()[0]
+
+    #If reset time not initialized set it to 12 from now.
+    #If reset time has passed, reset API usage to 0 and set new reset time to 12 hours from now.
+    #If api usage has reached 70, return an error message indicating usage limit being reached. 
+    if reset_time is None:
+        con.execute("UPDATE users SET API_USE_RESET = ? WHERE API_KEY = ?", (time_to_reset, api_key))
+    elif datetime.datetime.strptime(reset_time, "%Y-%m-%d %H:%M:%S.%f") < datetime.datetime.now():
+        con.execute("UPDATE users SET API_USE_RESET = ?, API_USAGE = 0 WHERE API_KEY = ?", (time_to_reset, api_key))
+    elif con.execute("SELECT API_USAGE FROM users WHERE API_KEY = ?", (api_key,)).fetchone()[0] >= 70:
+        return jsonify({"error": "API usage limit reached. Please try again later."}), 429
+
+    #Increment API usage count for associated used by 1.
+    con.execute("UPDATE users SET API_USAGE = API_USAGE + 1 WHERE API_KEY = ?", (api_key,))
+
+    #commit and close connection. 
+    connection.commit()
+    connection.close()
+
+    #Return json response with scan results.
+    return jsonify({"url": url,"domain": decompose_urld["domain"],"whois_score": whois_result[0],
+                    "ssl_score": ssl_result[0],"ssl_message": ssl_result[1],"ip_address": ip_address,"country": ip_country,
+                    "city": ip_city,"in_database": in_database_result[1]}), 200
     
 @app.route("/settings", methods=["GET", "POST"])
 def settings():
@@ -682,8 +744,6 @@ def settings():
     if request.method == "POST":
 
         form_type = request.form.get("form_type")
-
-        print(form_type)
 
         if form_type == "change_password":
             #Get old and new passwords from form.
@@ -741,7 +801,6 @@ def settings():
         elif form_type == "generate_api_key":
 
         #-------------------ADD HASHING AND ENCRYPTION OF API KEY-------------------#
-
             #Connect to DB.
             Connection = sqlite3.connect("DB/users.db")
             cursor = Connection.cursor()    
@@ -752,14 +811,17 @@ def settings():
             #If API key exists, return it to the user.
             #If not, generate a new API key, and store it in the database. 
             if API_key[0] is not None:
-                print(API_key[0])
-                return render_template("settings.html", username = session["username"], message_api = "API key already generated", key = API_key[0])
+                usage_remaining = 100 - int(cursor.execute("SELECT API_USAGE FROM users WHERE id = ?", (session["user_id"],)).fetchone()[0])
+                return render_template("settings.html", username = session["username"], message_api = "API key already generated", key = API_key[0], usage_remaining = usage_remaining)
             else: 
 
                 #Generate a new API key using secrets.
                 #Store the generated API key in the database for the user.
                 API_key = secrets.token_hex(36)
                 cursor.execute("UPDATE users SET API_KEY = ? WHERE id = ?", (API_key, session["user_id"]))
+
+
+            print(usage_remaining)
 
             #Close conncetion to database. 
             Connection.commit()
@@ -781,18 +843,20 @@ def delete_account():
     #If user confirms account deletion, delete the user's account and associated history data from the database for privacy and security reasons.
     if confirmed == "true":
         
+        #Initialize connection to the database. 
         connect = sqlite3.connect("DB/users.db")
         cursor = connect.cursor()
 
+        #Delete the user's account and associated history data from the database.
         cursor.execute("DELETE FROM users WHERE id = ?", (session["user_id"],))
         cursor.execute("DELETE FROM user_history_link WHERE user_id = ?", (session["user_id"],))
 
-
+        #Commit and close the connection.
         connect.commit()
         connect.close()
 
+        #Return user to the login page with a message indicating successful account deletion. 
         return render_template("login.html", message = "Account deleted successfully.")
-
 
 #Run the Flask application.
 #With debug mode on to get more info about errors/bugs.

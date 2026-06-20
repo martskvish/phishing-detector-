@@ -152,7 +152,7 @@ def levenshteins_distance_domain(domain):
         #Store lowest dsitance and closes domain to original domain.
         if distance < lowest_distance:
             lowest_distance = distance
-            closest_domain = row[1]
+            closest_domain = row
 
     #Classify distance.
     score = 0
