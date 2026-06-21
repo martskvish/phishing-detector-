@@ -811,7 +811,7 @@ def settings():
             #If API key exists, return it to the user.
             #If not, generate a new API key, and store it in the database. 
             if API_key[0] is not None:
-                usage_remaining = 100 - int(cursor.execute("SELECT API_USAGE FROM users WHERE id = ?", (session["user_id"],)).fetchone()[0])
+                usage_remaining = 70 - int(cursor.execute("SELECT API_USAGE FROM users WHERE id = ?", (session["user_id"],)).fetchone()[0])
                 return render_template("settings.html", username = session["username"], message_api = "API key already generated", key = API_key[0], usage_remaining = usage_remaining)
             else: 
 

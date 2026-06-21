@@ -46,7 +46,7 @@
                 <li>Returns JSON response</li>
             </ul>
         {% if usage_remaining %}
-            <p>API usage remaining: {{ usage_remaining }} out of 100</p>
+            <p>API usage remaining: {{ usage_remaining }} out of 70</p>
         {% endif %}
         <form action="/settings" method="POST">
             <button type="submit" name="form_type" value="generate_api_key">Generate API Key</button>
