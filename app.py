@@ -682,7 +682,7 @@ def api_scan():
     api_key = request.json.get("api_key")
     url = request.json.get("url")
 
-    time_now = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+    #Set the time to reset API usage to 12 hours from now.
     time_to_reset = datetime.datetime.now() + datetime.timedelta(hours=12)
 
     if not api_key or not url:

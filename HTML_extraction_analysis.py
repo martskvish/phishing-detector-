@@ -26,20 +26,20 @@ def extract_text_from_html(unfiltered):
         return ""
 
     #Convert the raw HTML string into a structured, searchable tree object which is stored in filtered.
-    filtered = BeautifulSoup(unfiltered.text, 'html.parser')
+    filtered = BeautifulSoup(unfiltered.text, "html.parser")
 
     #If the input is already a string, it will raise an AttributeError when trying to access the .text attribute.
     #Ecxept block catches this error 
     try:
-        filtered = BeautifulSoup(unfiltered.text, 'html.parser')
+        filtered = BeautifulSoup(unfiltered.text, "html.parser")
     except AttributeError:
-        filtered = BeautifulSoup(unfiltered, 'html.parser')
+        filtered = BeautifulSoup(unfiltered, "html.parser")
 
     #Filtered variable gets the HTML content from the response and parses it using BeautifulSoup.
     #Parsign means converting the HTML content into a structured format that allows for easy extraction of specific elements.
     
     #HTML Tags that contain visible text: <p> — paragraphs<h1> to <h6> — headings<li> — list items<div> — containers<blockquote> — quotes<pre> — preformatted text<dd>, <dt> — description lists
-    valid_tags = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'div', 'blockquote', 'pre', 'dd', 'dt']
+    valid_tags = ["p", "h1", "h2", "h3", "h4", "h5", "h6", "li", "div", "blockquote", "pre", "dd", "dt"]
 
     #Initalizes an empty string to store the extracted text.
     extracted_text = " "
@@ -100,7 +100,7 @@ def HTML_tag_analyser(HTML_raw, full_domain):
 
     #Convert the raw HTML string into a structured, searchable tree object which is stored in filtered.
     #Explain how parsing works.
-    filtered = BeautifulSoup(HTML_raw.text, 'html.parser')
+    filtered = BeautifulSoup(HTML_raw.text, "html.parser")
 
     #Initialise score and matched_tags variable
     score = 0
@@ -110,68 +110,68 @@ def HTML_tag_analyser(HTML_raw, full_domain):
     #Gets the value of the action attribute of the form tag. The action attribute specifies where the form data should be sent when the form is submitted.
     #If actiontio attribute exists and does not contain the domain of URL being analysed and it starts with "http", it is considered suspicious because it indicates that the form is submitting data to an external site.
     #Example - <form action="https://evil.com/steal-data">
-    for form in filtered.find_all('form'):
-        action = form.get('action', '')
-        if action and domain not in action and action.startswith('http'):
+    for form in filtered.find_all("form"):
+        action = form.get("action", "")
+        if action and domain not in action and action.startswith("http"):
             score = score + 20
-            matched_tags.append(('form', action))
+            matched_tags.append(("form", action))
 
     #Iterates through all the script tags in the parsed HTML.
     #Get value of src attribute of the script tag. The src attribute specifies the URL of an external script file.        
     #Example - <script src="https://evil.com/keylogger.js"></script>
-    for script in filtered.find_all('script'):
-        src = script.get('src', '')
-        if src and domain not in src and src.startswith('http'):
+    for script in filtered.find_all("script"):
+        src = script.get("src", "")
+        if src and domain not in src and src.startswith("http"):
             score = score + 15
-            matched_tags.append(('script', src))
+            matched_tags.append(("script possible external script", src))
     
     #Iterates through all the iframe tags in the parsed HTML.
     #Iframes are tool for including a cloned legitimate page (a real bank login) inside a phishing website.
     #Get value of isrc attribute of the iframe tag. The isrc attribute specifies the URL of an external iframe content.
     #Example - <iframe src="https://evil.com/fake-barclays-login"></iframe>
-    for iframe in filtered.find_all('iframe'):
-        isrc = iframe.get('src', '')
+    for iframe in filtered.find_all("iframe"):
+        isrc = iframe.get("src", "")
         if isrc and domain not in isrc:
             score  = score + 12
-            matched_tags.append(('iframe', isrc))
+            matched_tags.append(("iframe detected possibly external website included on page", isrc))
 
 
     #Iterates through all the base tags in the parsed HTML.
-    #base tag sets default URL for all link on page. if base tag points to external website, it can be used to send password from login form to the attacker's server instead of the real bank.
+    #base tag sets default URL for all link on page. if base tag points to external website, it can be used to send password from login form to the attacker"s server instead of the real bank.
     #Get value of href attribute of the base tag.
     #Example - <base href="https://evil.com/">       
-    for base in filtered.find_all('base'):
-        href = base.get('href', '')
-        if href and domain not in href and href.startswith('http'):
+    for base in filtered.find_all("base"):
+        href = base.get("href", "")
+        if href and domain not in href and href.startswith("http"):
             score = score + 18
-            matched_tags.append(('base', href))
+            matched_tags.append(("base", href))
 
 
     #Meta tag with http-equiv="refresh" can be used to automatically redirect users to another page after a certain amount of time. 
     #If the content attribute of meta tag doesnt contain the domain of the URL being analysed, it may be considered that the page is trying to redirect users to an external site.
     #Example - <meta http-equiv="refresh" content="0; url=https://evil.com/fake-login">
-    for meta in filtered.find_all('meta'):
-        http_eq = meta.get('http-equiv', '')
-        content = meta.get('content', '')
-        if http_eq.lower() == 'refresh' and domain not in content:
+    for meta in filtered.find_all("meta"):
+        http_eq = meta.get("http-equiv", "")
+        content = meta.get("content", "")
+        if http_eq.lower() == "refresh" and domain not in content:
             score = score + 12 
-            matched_tags.append(('Auto redirect meta refresh', 'High', 12))
+            matched_tags.append(("Auto redirect meta refresh", "High", 12))
     
 
     #Iterates through all the anchor tags in the parsed HTML.
     #Get value of href attribute of the anchor tag. The href attribute specifies the URL of the link.
     #if the href attribute contains the domain of the URL being analysed, it is considered a legitimate link.
     #example - <a href="/privacy-policy">Privacy Policy</a>
-    for base2 in filtered.find_all('a'):
-        href = base2.get('href', '')
+    for base2 in filtered.find_all("a"):
+        href = base2.get("href", "")
         text = base2.get_text().lower()
-        if 'privacy' in text:
+        if "privacy" in text:
             if domain in href:
                 score = score - 5
-                matched_tags.append(('Privacy link', 'Low', -5))
+                matched_tags.append(("Privacy link", "Low", -5))
             else:
                 score = score + 5
-                matched_tags.append(('Suspicious privacy link', 'High', 5))
+                matched_tags.append(("Suspicious privacy link", "High", 5))
         
 
     return score, matched_tags
@@ -190,8 +190,8 @@ def HTML_code_jaccard(HTML_raw, simmilar, levenshteins_distance_domain):
         score = 0 
 
         #Convert raw HTML code into structured, searchable tree.
-        filtered1 = BeautifulSoup(HTML_raw.text, 'html.parser')
-        filtered2 = BeautifulSoup(simmilar.text, 'html.parser')
+        filtered1 = BeautifulSoup(HTML_raw.text, "html.parser")
+        filtered2 = BeautifulSoup(simmilar.text, "html.parser")
 
         #Remove script and style tags and their content from the parsed HTML. 
         #These tags often contain code that is not visible to users but can be used for malicious purposes.
