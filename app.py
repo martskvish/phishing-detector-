@@ -428,11 +428,11 @@ def scan_history():
     if "user_id" not in session:
         return redirect("/")
     
-    #Initaliaze connection to user database
+    #Initaliaze connection to user database.
     Connection = sqlite3.connect("DB/users.db")
     cursor = Connection.cursor()
 
-    #Fetch all IDs of past scans which have provided user_id associated
+    #Fetch all IDs of past scans which have provided user_id associated.
     history_ids = cursor.execute("SELECT history_id FROM user_history_link WHERE user_id = ?", (session["user_id"],)).fetchall()
 
     #Turn outputed tuple from sql query to list
@@ -440,7 +440,7 @@ def scan_history():
     for index in history_ids:
         result.append(index[0])
 
-    #Append every scan corresponding to extracted scan IDs
+    #Append every scan corresponding to extracted scan IDs.
     scans = []
     for i in result:    
         scan_data = cursor.execute("SELECT * FROM history WHERE id = ?", (i,)).fetchone()
