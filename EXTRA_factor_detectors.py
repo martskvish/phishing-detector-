@@ -55,9 +55,9 @@ def WHOIS_lookup(domain):
         if domain_age is None:
             score = score + 15
             reasons.append("Domain age unknown (+15)")
-        elif domain_age < 30:
-            score = score + 40
-            reasons.append(f"Very new domain: {domain_age} days (+40)")
+        elif domain_age <= 30:
+            score = score + 50
+            reasons.append(f"Very new domain: {domain_age} days (+50) (less than 1 month)")
         elif domain_age < 180: 
             score = score  + 15
             reasons.append(f"Young domain: {domain_age} days (+15)")
@@ -84,8 +84,8 @@ def WHOIS_lookup(domain):
             score = score + 5
             reasons.append("Last updated unknown (+5)")
         elif days_from_last_update < 7:
-            score = score + 25
-            reasons.append(f"Updated very recently: {days_from_last_update} days ago (+15)")
+            score = score + 20
+            reasons.append(f"Updated very recently: {days_from_last_update} days ago (+20)")
         elif days_from_last_update < 30:
             score = score +10
             reasons.append(f"Updated recently: {days_from_last_update} days ago (+10)")
@@ -107,17 +107,17 @@ def WHOIS_lookup(domain):
             score = score + 10
             reasons.append(f"Suspicious registrar: {registrar} (+10)")
         else:
-            score = score + 5
-            reasons.append("Registrar unknown (+5)")
+            reasons.append("Registrar unknown")
         
         return score, reasons, Name_Servers, registrar
         
     #Catch any errors when whois.whois(domain) fails
     except Exception as error:
         print(f"Error: {error}")
+        reasons = [f"Error retrieving WHOIS information: {error}"]
         
         #Return empty values to keep other parts of program from crashing
-        return 0, [], "", ""
+        return 0, reasons, "", ""
     
 def SSL_certificate_analysis(url):
     try:
