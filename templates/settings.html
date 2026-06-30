@@ -49,15 +49,17 @@
             <p>API usage remaining: {{ usage_remaining }} out of 70</p>
         {% endif %}
         <form action="/settings" method="POST">
-            <button type="submit" name="form_type" value="generate_api_key">Generate API Key</button>
+            <button type="submit" name="form_type" value="generate_api_key">Generate new API Key</button>
         {% if message_api %}
             <p style="color: red;">{{ message_api }}</p>
             {% if key %}
                 <p>Your API Key: {{ key }}</p>
             {% endif %}
         {% else %}
-            <p>Click generate to display or create an API key.</p>
+            <p>Click to generate and display a new API key.</p>
         {% endif %}
+        <form action="/settings" method="POST">
+            <button type="submit" name="form_type" value="check_usage">Check API Usage</button>
         </form>
         <h2>Delete Account</h2>
 

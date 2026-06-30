@@ -461,7 +461,6 @@ def export_history():
     cursor = Connection.cursor()
     history_ids = cursor.execute("SELECT history_id FROM user_history_link WHERE user_id = ?", (session["user_id"],)).fetchall()
 
-    print(history_ids)
     #Turn outputed tuple from sql query to list.
     #Fetch all scan data corresponding to user's scan IDs.
     #Only append first five items from scan.data.
@@ -691,11 +690,22 @@ def api_scan():
     #Get user ID associated with the provided API key from the database.
     connection = sqlite3.connect("DB/users.db")
     con = connection.cursor()
-    user = con.execute("SELECT id FROM users WHERE API_KEY = ?",(api_key,)).fetchone()
+    user_id = None
+    users = users = con.execute("SELECT id, API_KEY FROM users WHERE API_KEY IS NOT NULL").fetchall()
+    '''
+    previusly i cycled through every user in users and checked for none but i can etraxt only users with value in api_key
+    as sql is more efficient in filetring
+    '''
+    #Cycle through every user whose api_key is not 0 and check if provided api key is same as hached api_key. 
+    for user in users:
+        if check_password_hash(user[1], api_key):
+            user_id = user[0]
+            break
+
     connection.close()
 
     #Check if the provided API key exists in the database.
-    if user is None:
+    if user_id is None:
         return jsonify({"error": "Invalid API key"}), 401
     
     #Run the scan.
@@ -710,20 +720,20 @@ def api_scan():
     con = connection.cursor()
     
     #Extraxt the API usage reset time from database. 
-    reset_time = con.execute("SELECT API_USE_RESET FROM users WHERE API_KEY = ?", (api_key,)).fetchone()[0]
+    reset_time = con.execute("SELECT API_USE_RESET FROM users WHERE id = ?", (user_id,)).fetchone()[0]
 
     #If reset time not initialized set it to 12 from now.
     #If reset time has passed, reset API usage to 0 and set new reset time to 12 hours from now.
     #If api usage has reached 70, return an error message indicating usage limit being reached. 
     if reset_time is None:
-        con.execute("UPDATE users SET API_USE_RESET = ? WHERE API_KEY = ?", (time_to_reset, api_key))
+        con.execute("UPDATE users SET API_USE_RESET = ? WHERE id = ?", (time_to_reset, user_id))
     elif datetime.datetime.strptime(reset_time, "%Y-%m-%d %H:%M:%S.%f") < datetime.datetime.now():
-        con.execute("UPDATE users SET API_USE_RESET = ?, API_USAGE = 0 WHERE API_KEY = ?", (time_to_reset, api_key))
-    elif con.execute("SELECT API_USAGE FROM users WHERE API_KEY = ?", (api_key,)).fetchone()[0] >= 70:
+        con.execute("UPDATE users SET API_USE_RESET = ?, API_USAGE = 0 WHERE id = ?", (time_to_reset, user_id))
+    elif con.execute("SELECT API_USAGE FROM users WHERE id = ?", (user_id,)).fetchone()[0] >= 70:
         return jsonify({"error": "API usage limit reached. Please try again later."}), 429
 
     #Increment API usage count for associated used by 1.
-    con.execute("UPDATE users SET API_USAGE = API_USAGE + 1 WHERE API_KEY = ?", (api_key,))
+    con.execute("UPDATE users SET API_USAGE = API_USAGE + 1 WHERE id = ?", (user_id,))
 
     #commit and close connection. 
     connection.commit()
@@ -800,7 +810,6 @@ def settings():
         
         elif form_type == "generate_api_key":
 
-        #-------------------ADD HASHING AND ENCRYPTION OF API KEY-------------------#
             #Connect to DB.
             Connection = sqlite3.connect("DB/users.db")
             cursor = Connection.cursor()    
@@ -808,26 +817,36 @@ def settings():
             #Fetch the user's existing API key.
             API_key = cursor.execute("SELECT API_KEY FROM users WHERE id = ?", (session["user_id"],)).fetchone()
 
-            #If API key exists, return it to the user.
-            #If not, generate a new API key, and store it in the database. 
-            if API_key[0] is not None:
-                usage_remaining = 70 - int(cursor.execute("SELECT API_USAGE FROM users WHERE id = ?", (session["user_id"],)).fetchone()[0])
-                return render_template("settings.html", username = session["username"], message_api = "API key already generated", key = API_key[0], usage_remaining = usage_remaining)
-            else: 
-
-                #Generate a new API key using secrets.
-                #Store the generated API key in the database for the user.
-                API_key = secrets.token_hex(36)
-                cursor.execute("UPDATE users SET API_KEY = ? WHERE id = ?", (API_key, session["user_id"]))
-
-
-            print(usage_remaining)
+            #Generate a new 36 character hexadecimal API key and hash it using generate_password_hash to keep api key secure in the database.
+            API_key = secrets.token_hex(16) 
+            hashed_API_key = generate_password_hash(API_key)
+            cursor.execute("UPDATE users SET API_KEY = ? WHERE id = ?", (hashed_API_key, session["user_id"]))
 
             #Close conncetion to database. 
             Connection.commit()
             Connection.close()
             
-            return render_template("settings.html", username = session["username"] ,message_api = "API key has been generated", key = API_key)
+            return render_template("settings.html", username = session["username"] ,message_api = " new API key has been generated", key = API_key)
+        
+        elif form_type == "check_usage":
+
+            #Connect to DB.
+            Connection = sqlite3.connect("DB/users.db")
+            cursor = Connection.cursor()   
+
+            #Fetch the user's API usage and reset time from the database.
+            reset_time = cursor.execute("SELECT API_USE_RESET FROM users WHERE id = ?", (session["user_id"],)).fetchone()[0]
+            user_id = session["user_id"]
+
+            #Allows to reset usage if api has not been called, keep usage updated. 
+            if datetime.datetime.strptime(reset_time, "%Y-%m-%d %H:%M:%S.%f") < datetime.datetime.now():
+                cursor.execute("UPDATE users SET API_USE_RESET = ?, API_USAGE = 0 WHERE id = ?", (reset_time, user_id))
+
+            use_remaining = 70 - int(cursor.execute("SELECT API_USAGE FROM users WHERE id = ?", (session["user_id"],)).fetchone()[0])
+
+            return render_template("settings.html", username = session["username"], usage_remaining = use_remaining)
+
+
     
     return render_template("settings.html", username = session["username"])
 
