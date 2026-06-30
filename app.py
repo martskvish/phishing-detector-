@@ -25,9 +25,10 @@ from HTML_extraction_analysis import extraxt_html_content, extract_text_from_htm
 from URL_extraction_analysis import decompose_url, levenshteins_distance_domain, analyse_subdomain_path, protocol_analysis, host_location
 from EXTRA_factor_detectors import WHOIS_lookup, SSL_certificate_analysis, Openphish_API, COMP_DB_URL
 from auth import gen_otp, send_otp
+from paths import CREDS_ENV_PATH, USERS_DB_PATH
 
 #Load enviromantal variables form .env file.
-load_dotenv("creds.env")
+load_dotenv(CREDS_ENV_PATH)
 
 #Initalizes a flask applicatio and assigns it to the variable app. 
 app = Flask(__name__)
@@ -55,7 +56,7 @@ def login_verify():
     password = request.form.get('password')
 
     #Initialize coonection to users.db
-    Connection = sqlite3.connect("DB/users.db")
+    Connection = sqlite3.connect(USERS_DB_PATH)
     cursor = Connection.cursor() 
 
     #This SQL command checks if there is a user in the USERS table with the provided email and gets all columns.
@@ -116,7 +117,7 @@ def add_user():
     password = request.form.get('password')
 
     #initializes connection to the SQLite database.
-    Connection = sqlite3.connect("DB/users.db")
+    Connection = sqlite3.connect(USERS_DB_PATH)
     cursor = Connection.cursor()
 
     #Checks if user with provided email already exists.
@@ -165,7 +166,7 @@ def verify_user():
             return render_template("auth.html", error="One Time Password has expired. Try again")
         
         if session["otp"] == int(request.form.get("otp")):
-            connect = sqlite3.connect("DB/users.db")
+            connect = sqlite3.connect(USERS_DB_PATH)
             cursor = connect.cursor()
 
             #Insert user detail into USERS table.
@@ -197,7 +198,7 @@ def scan():
         time = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
         yield "data: Starting scan\n\n"
         
-        Connection = sqlite3.connect("DB/users.db")
+        Connection = sqlite3.connect(USERS_DB_PATH)
         cursor = Connection.cursor()
 
         #Check if URL has already been scanned.
@@ -286,7 +287,7 @@ def scan():
                 colour = "#ef4444"
 
             #As scanning takes time to reduce risk of DB errors open connection later.
-            Connection = sqlite3.connect("DB/users.db")
+            Connection = sqlite3.connect(USERS_DB_PATH)
             cursor = Connection.cursor()
 
             #Insert scan data into history table.
@@ -334,7 +335,7 @@ def scan():
             session["curr_scan_id"] = scan_id
         else:
             #Initializes connection to database.
-            Connection = sqlite3.connect("DB/users.db")
+            Connection = sqlite3.connect(USERS_DB_PATH)
             cursor = Connection.cursor()
 
             #If URL has already been scanned, fetch scan data from database and use it to render the scan.html template.
@@ -384,7 +385,7 @@ def scan_result():
         return redirect("/")
 
     #Initialize connection.
-    Connection = sqlite3.connect("DB/users.db")
+    Connection = sqlite3.connect(USERS_DB_PATH)
     cursor = Connection.cursor()
 
     #Assign scan ID from session or from current_scan_ids.
@@ -429,7 +430,7 @@ def scan_history():
         return redirect("/")
     
     #Initaliaze connection to user database.
-    Connection = sqlite3.connect("DB/users.db")
+    Connection = sqlite3.connect(USERS_DB_PATH)
     cursor = Connection.cursor()
 
     #Fetch all IDs of past scans which have provided user_id associated.
@@ -457,7 +458,7 @@ def export_history():
         return redirect("/")
     
     #Connect to user database and fetch all scan IDs associated with the user.
-    Connection = sqlite3.connect("DB/users.db")
+    Connection = sqlite3.connect(USERS_DB_PATH)
     cursor = Connection.cursor()
     history_ids = cursor.execute("SELECT history_id FROM user_history_link WHERE user_id = ?", (session["user_id"],)).fetchall()
 
@@ -499,7 +500,7 @@ def export_PDF():
         return redirect("/")
     
     #Initialize connection to DB.
-    Connection = sqlite3.connect("DB/users.db")
+    Connection = sqlite3.connect(USERS_DB_PATH)
     cursor = Connection.cursor()
 
     #Extract scan data from for the scan ID that is stored in session.
@@ -635,7 +636,7 @@ def stats():
         return redirect("/")
     
     #Initailize connection.
-    Connection = sqlite3.connect("DB/users.db")
+    Connection = sqlite3.connect(USERS_DB_PATH)
     cursor = Connection.cursor()
 
     #Fetch all date columns from the statistics table.
@@ -688,7 +689,7 @@ def api_scan():
         return jsonify({"error": "Missing API key or URL"}), 400
     
     #Get user ID associated with the provided API key from the database.
-    connection = sqlite3.connect("DB/users.db")
+    connection = sqlite3.connect(USERS_DB_PATH)
     con = connection.cursor()
     user_id = None
     users = users = con.execute("SELECT id, API_KEY FROM users WHERE API_KEY IS NOT NULL").fetchall()
@@ -716,7 +717,7 @@ def api_scan():
     in_database_result = COMP_DB_URL(decompose_urld["domain"])
 
     #Update API usage statistics.
-    connection = sqlite3.connect("DB/users.db")
+    connection = sqlite3.connect(USERS_DB_PATH)
     con = connection.cursor()
     
     #Extraxt the API usage reset time from database. 
@@ -761,7 +762,7 @@ def settings():
             new_password = request.form.get("new_password")
 
             #Initalize connection. 
-            Connection = sqlite3.connect("DB/users.db")
+            Connection = sqlite3.connect(USERS_DB_PATH)
             cursor = Connection.cursor()
 
             #Fetch user's current password hash from database to verify old password.
@@ -773,7 +774,7 @@ def settings():
                 new_password_hash = generate_password_hash(new_password)
 
                 #Connect to DB.
-                Connection = sqlite3.connect("DB/users.db")
+                Connection = sqlite3.connect(USERS_DB_PATH)
                 cursor = Connection.cursor()
 
                 #Update the user's password in the database with the new password hash.
@@ -795,7 +796,7 @@ def settings():
 
 
             #Connect to DB.
-            Connection = sqlite3.connect("DB/users.db")
+            Connection = sqlite3.connect(USERS_DB_PATH)
             cursor = Connection.cursor()
 
             #Update the user's preferred scan period in the database.
@@ -811,7 +812,7 @@ def settings():
         elif form_type == "generate_api_key":
 
             #Connect to DB.
-            Connection = sqlite3.connect("DB/users.db")
+            Connection = sqlite3.connect(USERS_DB_PATH)
             cursor = Connection.cursor()    
 
             #Fetch the user's existing API key.
@@ -831,7 +832,7 @@ def settings():
         elif form_type == "check_usage":
 
             #Connect to DB.
-            Connection = sqlite3.connect("DB/users.db")
+            Connection = sqlite3.connect(USERS_DB_PATH)
             cursor = Connection.cursor()   
 
             #Fetch the user's API usage and reset time from the database.
@@ -863,7 +864,7 @@ def delete_account():
     if confirmed == "true":
         
         #Initialize connection to the database. 
-        connect = sqlite3.connect("DB/users.db")
+        connect = sqlite3.connect(USERS_DB_PATH)
         cursor = connect.cursor()
 
         #Delete the user's account and associated history data from the database.

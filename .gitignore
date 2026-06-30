@@ -2,3 +2,5 @@ creds.env
 test.py
 *.env
 test.py
+__pycache__/
+*.py[cod]

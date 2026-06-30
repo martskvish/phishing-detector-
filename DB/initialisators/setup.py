@@ -2,8 +2,13 @@
 
 import sqlite3
 import os
+import sys
+from pathlib import Path
 
-DB_PATH = "DB/sus_keywords.db"
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from paths import SUSPICIOUS_KEYWORDS_DB_PATH
+
+DB_PATH = SUSPICIOUS_KEYWORDS_DB_PATH
 
 #Data
 
@@ -192,6 +197,18 @@ def insert_data(cursor):
         "INSERT INTO html_suspicious_phrases (keyword, severity, weight) VALUES (?, ?, ?)",
         HTML_PHRASES
     )
+
+
+def print_summary(cursor):
+    """Print row counts for the generated suspicious-keyword tables."""
+    for table in (
+        "url_suspicious_characters",
+        "url_subdomain_keywords",
+        "url_path_keywords",
+        "html_suspicious_phrases",
+    ):
+        count = cursor.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+        print(f"{table}: {count} rows")
 
 
 #Main

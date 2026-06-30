@@ -9,10 +9,11 @@ from email.mime.text import MIMEText
 import os
 import random
 from dotenv import load_dotenv
+from paths import CREDS_ENV_PATH
 
 #Load enviromantal variables form .env file.
 #Storing sensitive info in .env file and loading them using python-dotenv is a good practice to keep them secure and separate from the codebase.
-load_dotenv("creds.env")
+load_dotenv(CREDS_ENV_PATH)
 
 #Define function to generate random 6 digit value from 100000 to 999999 as OTP.
 def gen_otp():

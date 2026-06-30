@@ -1,11 +1,16 @@
 
 #Imports Python’s SQLite database module. 
 import sqlite3
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from paths import USERS_DB_PATH
 
 #Opens a connection to a SQLite database file named "users.db". If the file does not exist, it will be created. 
 #The connection object is stored in the variable connection. Establishes a connection so Python can send SQL commands.
 #A cursor allows the program to execute SQL commands.
-connection = sqlite3.connect("DB/users.db")
+connection = sqlite3.connect(USERS_DB_PATH)
 cursor = connection.cursor()
 
 #Command tells the database to create a table called USERS. Table will have three columns: id, username, email, password and historyID.
