@@ -390,7 +390,7 @@ def scan_result():
 
     #Assign scan ID from session or from current_scan_ids.
     #If scan ID is not found, redirect to home page.
-    scan_id = session.get("curr_scan_id") or current_scan_ids.get(session["user_id"])
+    scan_id =  current_scan_ids.get(session["user_id"]) or session.get("curr_scan_id")
     if scan_id is None:
         return redirect("/home")
     
