@@ -695,8 +695,8 @@ def api_scan():
     api_key = request.json.get("api_key")
     url = request.json.get("url")
 
-    #Set the time to reset API usage to 12 hours from now.
-    time_to_reset = datetime.datetime.now() + datetime.timedelta(hours=12)
+    #Set the time to reset API usage to 12 hours from now and make sure that time is in the correct format.
+    time_to_reset = (datetime.datetime.now() + datetime.timedelta(hours=12)).strftime("%Y-%m-%d %H:%M:%S.%f")
 
     if not api_key or not url:
         return jsonify({"error": "Missing API key or URL"}), 400
