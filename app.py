@@ -691,72 +691,77 @@ def stats():
 @app.route("/api/scan", methods=["POST"])
 def api_scan():
     
-    #Get API key and URL from the request JSON payload.
-    api_key = request.json.get("api_key")
-    url = request.json.get("url")
+    try:
+        #Get API key and URL from the request JSON payload.
+        api_key = request.json.get("api_key")
+        url = request.json.get("url")
 
-    #Set the time to reset API usage to 12 hours from now and make sure that time is in the correct format.
-    time_to_reset = (datetime.datetime.now() + datetime.timedelta(hours=12)).strftime("%Y-%m-%d %H:%M:%S.%f")
+        #Set the time to reset API usage to 12 hours from now and make sure that time is in the correct format.
+        time_to_reset = (datetime.datetime.now() + datetime.timedelta(hours=12)).strftime("%Y-%m-%d %H:%M:%S.%f")
 
-    if not api_key or not url:
-        return jsonify({"error": "Missing API key or URL"}), 400
-    
-    #Get user ID associated with the provided API key from the database.
-    connection = sqlite3.connect(USERS_DB_PATH)
-    con = connection.cursor()
-    user_id = None
-    users = users = con.execute("SELECT id, API_KEY FROM users WHERE API_KEY IS NOT NULL").fetchall()
-    '''
-    previusly i cycled through every user in users and checked for none but i can etraxt only users with value in api_key
-    as sql is more efficient in filetring
-    '''
-    #Cycle through every user whose api_key is not 0 and check if provided api key is same as hached api_key. 
-    for user in users:
-        if check_password_hash(user[1], api_key):
-            user_id = user[0]
-            break
+        if not api_key or not url:
+            return jsonify({"error": "Missing API key or URL"}), 400
+        
+        #Get user ID associated with the provided API key from the database.
+        connection = sqlite3.connect(USERS_DB_PATH)
+        con = connection.cursor()
+        user_id = None
+        users = users = con.execute("SELECT id, API_KEY FROM users WHERE API_KEY IS NOT NULL").fetchall()
+        '''
+        previusly i cycled through every user in users and checked for none but i can etraxt only users with value in api_key
+        as sql is more efficient in filetring
+        '''
+        #Cycle through every user whose api_key is not 0 and check if provided api key is same as hached api_key. 
+        for user in users:
+            if check_password_hash(user[1], api_key):
+                user_id = user[0]
+                break
 
-    connection.close()
+        connection.close()
 
-    #Check if the provided API key exists in the database.
-    if user_id is None:
-        return jsonify({"error": "Invalid API key"}), 401
-    
-    #Run the scan.
-    decompose_urld = decompose_url(url)
-    whois_result = WHOIS_lookup(decompose_urld["domain"])
-    ssl_result = SSL_certificate_analysis(url)
-    ip_address, ip_country, ip_city = host_location(decompose_urld["domain"])
-    in_database_result = COMP_DB_URL(decompose_urld["domain"])
+        #Check if the provided API key exists in the database.
+        if user_id is None:
+            return jsonify({"error": "Invalid API key"}), 401
+        
+        #Run the scan.
+        decompose_urld = decompose_url(url)
+        whois_result = WHOIS_lookup(decompose_urld["domain"])
+        ssl_result = SSL_certificate_analysis(url)
+        ip_address, ip_country, ip_city = host_location(decompose_urld["domain"])
+        in_database_result = COMP_DB_URL(decompose_urld["domain"])
 
-    #Update API usage statistics.
-    connection = sqlite3.connect(USERS_DB_PATH)
-    con = connection.cursor()
-    
-    #Extraxt the API usage reset time from database. 
-    reset_time = con.execute("SELECT API_USE_RESET FROM users WHERE id = ?", (user_id,)).fetchone()[0]
+        #Update API usage statistics.
+        connection = sqlite3.connect(USERS_DB_PATH)
+        con = connection.cursor()
+        
+        #Extraxt the API usage reset time from database. 
+        reset_time = con.execute("SELECT API_USE_RESET FROM users WHERE id = ?", (user_id,)).fetchone()[0]
 
-    #If reset time not initialized set it to 12 from now.
-    #If reset time has passed, reset API usage to 0 and set new reset time to 12 hours from now.
-    #If api usage has reached 70, return an error message indicating usage limit being reached. 
-    if reset_time is None:
-        con.execute("UPDATE users SET API_USE_RESET = ? WHERE id = ?", (time_to_reset, user_id))
-    elif datetime.datetime.strptime(reset_time, "%Y-%m-%d %H:%M:%S.%f") < datetime.datetime.now():
-        con.execute("UPDATE users SET API_USE_RESET = ?, API_USAGE = 0 WHERE id = ?", (time_to_reset, user_id))
-    elif con.execute("SELECT API_USAGE FROM users WHERE id = ?", (user_id,)).fetchone()[0] >= 70:
-        return jsonify({"error": "API usage limit reached. Please try again later."}), 429
+        #If reset time not initialized set it to 12 from now.
+        #If reset time has passed, reset API usage to 0 and set new reset time to 12 hours from now.
+        #If api usage has reached 70, return an error message indicating usage limit being reached. 
+        if reset_time is None:
+            con.execute("UPDATE users SET API_USE_RESET = ? WHERE id = ?", (time_to_reset, user_id))
+        elif datetime.datetime.strptime(reset_time, "%Y-%m-%d %H:%M:%S.%f") < datetime.datetime.now():
+            con.execute("UPDATE users SET API_USE_RESET = ?, API_USAGE = 0 WHERE id = ?", (time_to_reset, user_id))
+        elif con.execute("SELECT API_USAGE FROM users WHERE id = ?", (user_id,)).fetchone()[0] >= 70:
+            return jsonify({"error": "API usage limit reached. Please try again later."}), 429
 
-    #Increment API usage count for associated used by 1.
-    con.execute("UPDATE users SET API_USAGE = API_USAGE + 1 WHERE id = ?", (user_id,))
+        #Increment API usage count for associated used by 1.
+        con.execute("UPDATE users SET API_USAGE = API_USAGE + 1 WHERE id = ?", (user_id,))
 
-    #commit and close connection. 
-    connection.commit()
-    connection.close()
+        #commit and close connection. 
+        connection.commit()
+        connection.close()
 
-    #Return json response with scan results.
-    return jsonify({"url": url,"domain": decompose_urld["domain"],"whois_score": whois_result[0],
-                    "ssl_score": ssl_result[0],"ssl_message": ssl_result[1],"ip_address": ip_address,"country": ip_country,
-                    "city": ip_city,"in_database": in_database_result[1]}), 200
+        #Return json response with scan results.
+        return jsonify({"url": url,"domain": decompose_urld["domain"],"whois_score": whois_result[0],
+                        "ssl_score": ssl_result[0],"ssl_message": ssl_result[1],"ip_address": ip_address,"country": ip_country,
+                        "city": ip_city,"in_database": in_database_result[1]}), 200
+
+    except Exception as e:
+        app.logger.exception("api_scan failed")
+        return jsonify({"error": "Internal server error"}), 500
     
 @app.route("/settings", methods=["GET", "POST"])
 def settings():
