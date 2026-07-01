@@ -1,6 +1,7 @@
 import sqlite3
 import socket
 import requests
+from paths import CERTIFIED_DOMAINS_PATH, DB_DIR, SUSPICIOUS_KEYWORDS_DB_PATH
 
 def decompose_url(url):
 
@@ -75,7 +76,7 @@ def decompose_url(url):
 def SQL_URL_database_extraction():
    
     #Connects to a SQLite database named sus_keywords.db and creates a cursor object to interact with the database.
-    connection = sqlite3.connect("DB/sus_keywords.db")
+    connection = sqlite3.connect(SUSPICIOUS_KEYWORDS_DB_PATH)
     cursor = connection.cursor() 
 
     cursor.execute("SELECT keyword, severity, weight FROM url_suspicious_characters")
@@ -102,7 +103,7 @@ def levenshteins_distance_domain(domain):
     closest_domain = ""
 
     #Open the certified domains file and read lines.
-    CERT_domain_file = open("DB/initialisators/domain.txt", "r")
+    CERT_domain_file = open(CERTIFIED_DOMAINS_PATH, "r")
     Lines = CERT_domain_file.readlines()
     CERT_domain_file.close()
 
@@ -110,7 +111,7 @@ def levenshteins_distance_domain(domain):
     #Removed code that connects to cert_domain.db and fetches domains, as we are now using a text file to store the certified domains for simplicity and efficiency.
     '''
     #Connect to a SQLite database names cert_domain.db and use cursor to interact with DB.
-    connection = sqlite3.connect("DB/cert_domain.db")
+    connection = sqlite3.connect(DB_DIR / "cert_domain.db")
     cursor = connection.cursor()
     cursor.execute("SELECT * FROM domains")
     '''
@@ -203,7 +204,7 @@ def protocol_analysis(protocol):
 def analyse_subdomain_path(subdomain, path, query):
      
     #Connect to a SQLite database names sus_keyword.db and use cursor objects to interact with each table.
-    connection = sqlite3.connect("DB/sus_keywords.db")
+    connection = sqlite3.connect(SUSPICIOUS_KEYWORDS_DB_PATH)
     cursor = connection.cursor()
     cursor.execute("SELECT * FROM url_subdomain_keywords")
     subdomain_rows = cursor.fetchall()

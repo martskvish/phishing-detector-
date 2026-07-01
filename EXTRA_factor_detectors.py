@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 import requests
 from requests.exceptions import SSLError, ConnectionError
 from URL_extraction_analysis import decompose_url
+from paths import OPENPHISH_FEED_PATH
 def WHOIS_lookup(domain):
     try:
         #Get raw text of domain's infomation, than python-whois parses that raw text into a Python object
@@ -146,7 +147,7 @@ def Openphish_API():
     #Open a text file to store the phishing URLs from Openphish feed.
     #Read all lines from the text file. 
     time_now =datetime.now()
-    DB = open("DB\initialisators\phis_url.txt", "r") 
+    DB = open(OPENPHISH_FEED_PATH, "r") 
     Lines = DB.readlines()
 
     #Get the first line of the text file, which contains the last time the phishing url database was updated. 
@@ -174,7 +175,7 @@ def Openphish_API():
                 #Open file in append mode to add new phishing URLs at the end of file.
                 #Add previously stored phishing ULRs.
                 #Add the phishing URLs from the Openphish feed to the text file.
-                DB = open("DB\initialisators\phis_url.txt", "w")
+                DB = open(OPENPHISH_FEED_PATH, "w")
                 DB.writelines(Lines) 
                 DB.write(response.text) 
                 DB.close()
@@ -189,7 +190,7 @@ def COMP_DB_URL(current_url_domain):
 
     #Open the text file that contains phishing URLs with read mode.
     #skip first line
-    DB = open("DB\initialisators\phis_url.txt", "r")
+    DB = open(OPENPHISH_FEED_PATH, "r")
     next(DB)  
 
     #Strip to remove /n.
