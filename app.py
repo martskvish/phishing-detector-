@@ -25,6 +25,7 @@ from HTML_extraction_analysis import extraxt_html_content, extract_text_from_htm
 from URL_extraction_analysis import decompose_url, levenshteins_distance_domain, analyse_subdomain_path, protocol_analysis, host_location
 from EXTRA_factor_detectors import WHOIS_lookup, SSL_certificate_analysis, Openphish_API, COMP_DB_URL
 from auth import gen_otp, send_otp
+from feature_settings import signup_2fa_enabled
 from paths import CREDS_ENV_PATH, USERS_DB_PATH
 
 #Load enviromantal variables form .env file.
@@ -106,6 +107,15 @@ def register():
     return render_template("signup.html")
 
 
+def create_user(username, email, password_hash):
+    #Insert a new user into the users database.
+    connect = sqlite3.connect(USERS_DB_PATH)
+    cursor = connect.cursor()
+    cursor.execute("INSERT INTO USERS (username, email, password) VALUES (?, ?, ?)", (username, email, password_hash))
+    connect.commit()
+    connect.close()
+
+
 #Defines a route for the /add_user URL that accepts POST requests.
 #When a user submits the registration form, add_user function is called.
 @app.route("/add_user", methods=["POST"])
@@ -129,9 +139,15 @@ def add_user():
         return render_template("signup.html", error="Email already exists")
     
     #Generate password hash to protect real password.
-    session["password_hash"] = generate_password_hash(password)
+    password_hash = generate_password_hash(password)
 
-    #Store username and email in session.
+    #If 2FA is disabled in feature_settings.py, create the account immediately.
+    if not signup_2fa_enabled():
+        create_user(username, email, password_hash)
+        return render_template("login.html", message="Account created successfully. Please log in.")
+
+    #Store user details temporarily in session while OTP is verified.
+    session["password_hash"] = password_hash
     session["username"] = username
     session["email"] = email
 
@@ -139,14 +155,14 @@ def add_user():
     session["otp"] = gen_otp()
 
     #Print OTP temproraly for easier user creation.
-    print(f"current users's OTP {session["otp"]}")
+    print(f"current users's OTP {session['otp']}")
 
     session["otp_exp"] = (datetime.datetime.now() + datetime.timedelta(minutes=3)).isoformat()
 
     #Use the send_otp function to send the generated OTP to the user's email address.
     send_otp(email, session["otp"])
 
-    #Redirect to the login page after successful registration.
+    #Redirect to OTP verification when 2FA is enabled.
     return redirect("verify_user")
 
 @app.route("/verify_user", methods=["GET", "POST"])
@@ -154,7 +170,7 @@ def verify_user():
 
     #If there is no OTP in the session, registartion has not been completed, return user to signup_page.
     if "otp" not in session:
-        return redirect("/signup")
+        return redirect("/register")
     
     #Else if there is an OTP in the session and user submits the form, check if OTP is correct and not expired.
     #If OTP is expired, render the auth.tml with error message.
@@ -166,15 +182,12 @@ def verify_user():
             return render_template("auth.html", error="One Time Password has expired. Try again")
         
         if session["otp"] == int(request.form.get("otp")):
-            connect = sqlite3.connect(USERS_DB_PATH)
-            cursor = connect.cursor()
+            create_user(session["username"], session["email"], session["password_hash"])
 
-            #Insert user detail into USERS table.
-            cursor.execute("INSERT INTO USERS (username, email, password) VALUES (?, ?, ?)", (session["username"], session["email"], session["password_hash"]))
-
-            #Commit and close connection to database.
-            connect.commit()
-            connect.close()
+            #Remove temporary signup information from the session after successful verification.
+            session.pop("password_hash", None)
+            session.pop("otp", None)
+            session.pop("otp_exp", None)
         
             return redirect("/")
         
@@ -390,7 +403,7 @@ def scan_result():
 
     #Assign scan ID from session or from current_scan_ids.
     #If scan ID is not found, redirect to home page.
-    scan_id =  current_scan_ids.get(session["user_id"]) or session.get("curr_scan_id")
+    scan_id = session.get("curr_scan_id") or current_scan_ids.get(session["user_id"])
     if scan_id is None:
         return redirect("/home")
     
