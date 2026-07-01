@@ -1,12 +1,12 @@
 # Phishing Detection Tool
 
 ## ⚠️ Personal School Project
-This is a personal school project made for learning cybersecurity and machine learning.
+This is a personal school project made for learning cybersecurity.
 
 ---
 
 ## About
-A Python Flask app that checks if a website is phishing or safe using URL analysis and simple ML.
+A Python Flask app that checks if a website is phishing or safe using URL and HTML analysis.
 
 ---
 
@@ -14,8 +14,8 @@ A Python Flask app that checks if a website is phishing or safe using URL analys
 - URL analysis
 - WHOIS check
 - HTML inspection
-- Simple ML prediction
-- Scan history
+- Account managment and Scan history
+
 
 ---
 
